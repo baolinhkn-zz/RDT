@@ -1,0 +1,6 @@
+# ignore all executables
+server
+client
+
+# ignore modified files
+*~
