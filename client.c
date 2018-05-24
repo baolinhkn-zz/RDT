@@ -14,7 +14,7 @@
 
 int main (int argc, char* argv[])
 {
-  INT sockfd;
+  int sockfd;
   char buffer[BUFFER];
   char* hello = "hello from client";
   char* file = argv[1];
@@ -39,7 +39,7 @@ int main (int argc, char* argv[])
 
   socklen_t len;
   
-  sendto(sockfd, (const char *) hello, strlen(hello), 0/*MSG_CONFIRM*/, (const struct sockaddr *) &servaddr, sizeof(servaddr));
+  sendto(sockfd, (const char *) hello, strlen(hello), MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr));
   printf("Hello mssage send. \n");
 
   n = recvfrom(sockfd, (char*) buffer, MAXLINE, MSG_WAITALL, (struct sockaddr*) &servaddr, &len);
