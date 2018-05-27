@@ -11,10 +11,24 @@
 #define BUFFER 256
 #define PORT 8080
 #define MAXLINE 1024
+#define DATA 1008
+
+struct packet
+{
+  int type;
+  int seq_num;
+
+  int data_size;
+  //end of file, fin = 1
+  //middle of file, fin = 0
+  int fin;
+
+  char data[DATA];
+};
 
 int main (int argc, char* argv[])
 {
-  INT sockfd;
+  int sockfd;
   char buffer[BUFFER];
   char* hello = "hello from client";
   char* file = argv[1];
@@ -39,7 +53,7 @@ int main (int argc, char* argv[])
 
   socklen_t len;
   
-  sendto(sockfd, (const char *) hello, strlen(hello), 0/*MSG_CONFIRM*/, (const struct sockaddr *) &servaddr, sizeof(servaddr));
+  sendto(sockfd, (const char *) hello, strlen(hello), MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr));
   printf("Hello mssage send. \n");
 
   n = recvfrom(sockfd, (char*) buffer, MAXLINE, MSG_WAITALL, (struct sockaddr*) &servaddr, &len);
