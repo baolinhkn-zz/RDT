@@ -11,6 +11,20 @@
 #define BUFFER 256
 #define PORT 8080
 #define MAXLINE 1024
+#define DATA 1008
+
+struct packet
+{
+  int type;
+  int seq_num;
+
+  int data_size;
+  //end of file, fin = 1
+  //middle of file, fin = 0
+  int fin;
+
+  char data[DATA];
+};
 
 int main (int argc, char* argv[])
 {
@@ -38,8 +52,22 @@ int main (int argc, char* argv[])
   int n;
 
   socklen_t len;
+
+  struct packet test_packet;
+  memset((void*) &test_packet, 0, sizeof(struct packet));
+  //  buffer = (struct packet*) malloc(sizeof(struct packet));
+
+  test_packet.type = 0;
+  test_packet.seq_num = 0;
   
-  sendto(sockfd, (const char *) hello, strlen(hello), MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr));
+  char* test = "TEST DATA";
+
+  memcpy((void*) &test_packet.data, (void*) test, strlen(test)+1);
+  //  test_packet.data = "Hello, TEST DATA";
+  test_packet.data_size = sizeof(test_packet.data);
+  test_packet.fin = 1;
+  sendto(sockfd, &test_packet, sizeof(test_packet), MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr));
+  //  sendto(sockfd, &buffer, strlen(hello), MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr));
   printf("Hello mssage send. \n");
 
   n = recvfrom(sockfd, (char*) buffer, MAXLINE, MSG_WAITALL, (struct sockaddr*) &servaddr, &len);

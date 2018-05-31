@@ -12,6 +12,20 @@
 #include <sys/socket.h>
 
 #define MAXLINE 1024
+#define DATA 1008
+
+struct packet
+{
+  int type;
+  int seq_num;
+
+  int data_size;
+  //end of file, fin = 1                                                        
+  //middle of file, fin = 0                                                     
+  int fin;
+
+  char data[DATA];
+};
 
 int main(int argc, char* argv[]) {
   if (argc != 3) {
@@ -41,10 +55,24 @@ int main(int argc, char* argv[]) {
     exit(1);
   }
 
+  struct packet recv_packet;
+
   int len, n;
+<<<<<<< HEAD
   n = recvfrom(sockfd, (char*)buffer, MAXLINE, MSG_WAITALL, (struct sockaddr*)&cliaddr, &len);
   buffer[n] = '\0';
   printf("Client: %s\n", buffer);
+=======
+  n = recvfrom(sockfd, &recv_packet, MAXLINE, MSG_WAITALL, (struct sockaddr*)&cliaddr, &len);
+  
+ 
+
+  printf("hello");
+  printf("Client: %s\n", recv_packet.data);
+
+  //  buffer[n] = '\0';
+  //printf("Client: %s\n", buffer);
+>>>>>>> baolinh
   sendto(sockfd, (const char*)hello, strlen(hello), MSG_CONFIRM, (const struct sockaddr*)&cliaddr, len);
   
   exit(0);
