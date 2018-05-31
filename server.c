@@ -58,11 +58,6 @@ int main(int argc, char* argv[]) {
   struct packet recv_packet;
 
   int len, n;
-<<<<<<< HEAD
-  n = recvfrom(sockfd, (char*)buffer, MAXLINE, MSG_WAITALL, (struct sockaddr*)&cliaddr, &len);
-  buffer[n] = '\0';
-  printf("Client: %s\n", buffer);
-=======
   n = recvfrom(sockfd, &recv_packet, MAXLINE, MSG_WAITALL, (struct sockaddr*)&cliaddr, &len);
   
  
@@ -72,7 +67,6 @@ int main(int argc, char* argv[]) {
 
   //  buffer[n] = '\0';
   //printf("Client: %s\n", buffer);
->>>>>>> baolinh
   sendto(sockfd, (const char*)hello, strlen(hello), MSG_CONFIRM, (const struct sockaddr*)&cliaddr, len);
   
   exit(0);
