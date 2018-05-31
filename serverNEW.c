@@ -14,8 +14,22 @@
 #include <netdb.h>
 
 #define MYPORT "4950"    // the port users will be connecting to
-
+#define DATA 1008
 #define MAXBUFLEN 100
+
+struct packet
+{
+  int type;
+  int seq_num;
+
+  int data_size;
+  //end of file, fin = 1                                                        
+  //middle of file, fin = 0                                                     
+  int fin;
+
+  char data[DATA];
+};
+
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
@@ -73,9 +87,10 @@ int main(void)
   freeaddrinfo(servinfo);
 
   printf("listener: waiting to recvfrom...\n");
+  struct packet recv_packet;
 
   addr_len = sizeof their_addr;
-  if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0,
+  if ((numbytes = recvfrom(sockfd, &recv_packet, MAXBUFLEN-1 , 0,
 			   (struct sockaddr *)&their_addr, &addr_len)) == -1) {
     perror("recvfrom");
     exit(1);
@@ -87,7 +102,7 @@ int main(void)
 		   s, sizeof s));
   printf("listener: packet is %d bytes long\n", numbytes);
   buf[numbytes] = '\0';
-  printf("listener: packet contains \"%s\"\n", buf);
+  printf("listener: packet contains \"%s\"\n", recv_packet.data);
 
   close(sockfd);
 
