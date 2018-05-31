@@ -58,6 +58,7 @@ int main(int argc, char* argv[]) {
   struct packet recv_packet;
 
   int len, n;
+  fprintf(stderr, "hello1");
   n = recvfrom(sockfd, &recv_packet, MAXLINE, MSG_WAITALL, (struct sockaddr*)&cliaddr, &len);
   
  
