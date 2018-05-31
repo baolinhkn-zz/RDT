@@ -12,6 +12,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <dirent.h>
 
 #define MYPORT "4950"    // the port users will be connecting to
 #define DATA 1008
@@ -129,9 +130,52 @@ int main(void)
 
     if (three_way_ack_packet.type == 0 && three_way_ack_packet.seq_num == 1)
       {	
-	printf("Receiving packet %d", three_way_ack_packet.seq_num+1);
+	printf("Receiving packet %d\n", three_way_ack_packet.seq_num+1);
       }
 
+    char filename_buff[100];
+    if ((numbytes = recvfrom(sockfd, &filename_buff, 100, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1) {
+      perror("recvfrom");
+      exit(1);
+    }
+
+    printf("Receiving filename %s\n", filename_buff);
+    
+    // Find the file in the current working directory
+    DIR *dp;
+    struct dirent *ep;
+    dp = opendir("./");
+    int validFile = 0;
+    FILE* fp;
+    
+    if (dp != NULL) {
+      while ((ep = readdir(dp))) {
+	if (strcasecmp(ep->d_name, filename_buff) == 0) {
+	  fp = fopen(ep->d_name, "r");
+	}
+      }
+      (void)closedir(dp);      
+    }
+
+    struct packet small_file_packet;
+
+    if (fseek(fp, 0, SEEK_END) != 0) {
+      fprintf(stderr, "error using fseek");
+    }
+
+    int file_length = ftell(fp);
+
+    fread(small_file_packet.data, sizeof(char), file_length, fp);
+    small_file_packet.data[file_length] = '\0';
+    small_file_packet.seq_num = server_seq_num + 1;
+
+    printf("Sending packet %d %d\n", small_file_packet.seq_num, CWND);
+
+    if ((numbytes = sendto(sockfd, &small_file_packet, sizeof(small_file_packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
+      perror("sendto");
+      exit(1);
+    }
+    
     break;
     
   }  

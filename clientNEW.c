@@ -111,6 +111,25 @@ int main(int argc, char *argv[])
 	  }
 	  printf("Sending packet %d SYN\n", ack_synack_packet.seq_num);
 	}
+
+      // Send filename over
+      int fileNameBytes = 0;
+      if ((fileNameBytes = sendto(sockfd, argv[2], strlen(argv[2]), 0, p->ai_addr, p->ai_addrlen)) == -1) {
+	perror("server: sendto");
+	exit(1);
+      }
+
+      // Receiving file
+      struct packet file_packet;
+      int fileBytes = 0;
+      if ((fileBytes = recvfrom(sockfd, &file_packet, MAXBUFLEN-1, 0, (struct sockaddr *)p->ai_addr, &(p->ai_addrlen))) == -1) {
+	perror("recvfrom");
+	exit(1);
+      }
+
+      printf("Receiving packet %d\n", file_packet.seq_num);
+      
+      
       break;
 
     }
