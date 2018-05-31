@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
 	exit(1);
       }
 
-      printf("Receiving packet %d\n", file_packet.seq_num);
+      printf("Receiving packet %d\n", file_packet.seq_num+1);
       
       
       break;

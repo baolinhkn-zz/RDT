@@ -170,6 +170,8 @@ int main(void)
     small_file_packet.seq_num = server_seq_num + 1;
 
     printf("Sending packet %d %d\n", small_file_packet.seq_num, CWND);
+    server_seq_num = server_seq_num + sizeof(small_file_packet);
+    printf("%d", server_seq_num);
 
     if ((numbytes = sendto(sockfd, &small_file_packet, sizeof(small_file_packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
       perror("sendto");
