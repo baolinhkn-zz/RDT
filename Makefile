@@ -1,3 +1,3 @@
 default:
-	@gcc -o server server.c
-	@gcc -o client client.c
+	@gcc -Wall -Wextra -o server serverNEW.c
+	@gcc -Wall -Wextra -o client clientNEW.c

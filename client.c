@@ -49,6 +49,11 @@ int main (int argc, char* argv[])
   servaddr.sin_port = htons(PORT);
   servaddr.sin_addr.s_addr = INADDR_ANY;
 
+  /*  if (bind(sockfd, (const struct sockaddr*)&servaddr, sizeof(servaddr)) < 0) {
+    fprintf(stderr, "Bind failed");
+    exit(1);
+    }*/
+
   int n;
 
   socklen_t len;
@@ -67,8 +72,8 @@ int main (int argc, char* argv[])
   test_packet.data_size = sizeof(test_packet.data);
   test_packet.fin = 1;
   
-  sendto(sockfd, &test_packet, sizeof(test_packet), MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr));
-  //  sendto(sockfd, &buffer, strlen(hello), MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr));
+  // sendto(sockfd, &test_packet, sizeof(test_packet), 0, (const struct sockaddr *) &servaddr, sizeof(servaddr));
+  sendto(sockfd, (const char*) hello, strlen(hello), MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr));
   printf("Hello mssage send. \n");
 
   n = recvfrom(sockfd, (char*) buffer, MAXLINE, MSG_WAITALL, (struct sockaddr*) &servaddr, &len);

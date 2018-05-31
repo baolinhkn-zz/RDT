@@ -57,17 +57,17 @@ int main(int argc, char* argv[]) {
 
   struct packet recv_packet;
 
-  int len, n;
+  socklen_t len;
+  int  n;
   fprintf(stderr, "hello1");
-  n = recvfrom(sockfd, &recv_packet, MAXLINE, MSG_WAITALL, (struct sockaddr*)&cliaddr, &len);
-  
- 
+  //n = recvfrom(sockfd, (void*) &recv_packet, MAXLINE, 0, (struct sockaddr*)&cliaddr, &len);
+  n = recvfrom(sockfd, (char*) buffer, MAXLINE, MSG_WAITALL, (struct sockaddr*)&cliaddr, &len);
 
-  printf("hello");
-  printf("Client: %s\n", recv_packet.data);
+  //  fprintf(stderr, "helo2");
+  //printf("Client: %s\n", recv_packet.data);
 
-  //  buffer[n] = '\0';
-  //printf("Client: %s\n", buffer);
+  buffer[n] = '\0';
+  printf("Client: %s\n", buffer);
   sendto(sockfd, (const char*)hello, strlen(hello), MSG_CONFIRM, (const struct sockaddr*)&cliaddr, len);
   
   exit(0);
