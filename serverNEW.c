@@ -16,6 +16,7 @@
 #define MYPORT "4950"    // the port users will be connecting to
 #define DATA 1008
 #define MAXBUFLEN 100
+#define CWND 5120
 
 struct packet
 {
@@ -66,13 +67,13 @@ int main(void)
   for(p = servinfo; p != NULL; p = p->ai_next) {
     if ((sockfd = socket(p->ai_family, p->ai_socktype,
 			 p->ai_protocol)) == -1) {
-      perror("listener: socket");
+      perror("server: socket");
       continue;
     }
 
     if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
       close(sockfd);
-      perror("listener: bind");
+      perror("server: bind");
       continue;
     }
 
@@ -80,30 +81,77 @@ int main(void)
   }
 
   if (p == NULL) {
-    fprintf(stderr, "listener: failed to bind socket\n");
+    fprintf(stderr, "server: failed to bind socket\n");
     return 2;
   }
 
   freeaddrinfo(servinfo);
 
-  printf("listener: waiting to recvfrom...\n");
+  //  printf("server: waiting to recvfrom...\n");
+  addr_len = sizeof their_addr;
+
+  int server_seq_num = 0;
+  
+  while(1) {
+    struct packet syn_packet;
+
+    if ((numbytes = recvfrom(sockfd, &syn_packet, MAXBUFLEN-1 , 0,
+			     (struct sockaddr *)&their_addr, &addr_len)) == -1) {
+      perror("recvfrom");
+      exit(1);
+    }
+
+    if (syn_packet.type == 0 && syn_packet.seq_num == 0)
+      {
+	//successfully received syn packet
+	printf("Receiving packet %d\n", syn_packet.seq_num+1);
+	//send SYNACK packet
+	struct packet synack_packet;
+	synack_packet.type = 1;
+	synack_packet.seq_num = server_seq_num;
+	synack_packet.fin = 1;
+	if ((numbytes = sendto(sockfd, &synack_packet, sizeof(synack_packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1) {
+	  perror("server: sendto");
+	  exit(1);
+	}
+	printf("Sending packet %d %d SYN\n", synack_packet.seq_num, CWND);
+	server_seq_num++;
+      }
+
+    //final ACK of three way handshake
+    struct packet three_way_ack_packet;
+    if ((numbytes = recvfrom(sockfd, &three_way_ack_packet, MAXBUFLEN-1 , 0,
+			     (struct sockaddr *)&their_addr, &addr_len)) == -1) {
+      perror("recvfrom");
+      exit(1);
+    }
+
+
+    if (three_way_ack_packet.type == 0 && three_way_ack_packet.seq_num == 1)
+      {	
+	printf("Receiving packet %d", three_way_ack_packet.seq_num+1);
+      }
+
+    break;
+    
+  }  
+  /*
   struct packet recv_packet;
 
-  addr_len = sizeof their_addr;
   if ((numbytes = recvfrom(sockfd, &recv_packet, MAXBUFLEN-1 , 0,
 			   (struct sockaddr *)&their_addr, &addr_len)) == -1) {
     perror("recvfrom");
     exit(1);
   }
-
-  printf("listener: got packet from %s\n",
+  
+  printf("server: got packet from %s\n",
 	 inet_ntop(their_addr.ss_family,
 		   get_in_addr((struct sockaddr *)&their_addr),
 		   s, sizeof s));
-  printf("listener: packet is %d bytes long\n", numbytes);
+  printf("server: packet is %d bytes long\n", numbytes);
   buf[numbytes] = '\0';
-  printf("listener: packet contains \"%s\"\n", recv_packet.data);
-
+  printf("server: packet contains \"%s\"\n", recv_packet.data);
+  */
   close(sockfd);
 
   return 0;
