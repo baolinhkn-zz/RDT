@@ -1,7 +1,3 @@
-/*
-** talker.c -- a datagram "client" demo
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -14,7 +10,7 @@
 #include <netdb.h>
 
 #define SERVERPORT "4950" // the port users will be connecting to
-#define DATA 1008
+#define DATA 1000
 #define MAXBUFLEN 100
 #define CWND 5120
 
@@ -22,7 +18,7 @@ struct packet
 {
   int type;
   //0 = syn
-  //1 = ack
+  //1 = ack/synack
   //2 = data
   //3 = retransmission
   int seq_num;
@@ -81,13 +77,13 @@ int main(int argc, char *argv[])
   }
 
   int client_seq_num = 0;
-
+  int expected_seq_num = 0;
   while (1)
   {
     struct packet rcv_packet;
     //send initial three way handshake request
     struct packet syn_packet;
-    syn_packet.type = 0;
+    syn_packet.type = 0; //SYN packet
     syn_packet.seq_num = client_seq_num;
     syn_packet.fin = 1;
     if ((numbytes = sendto(sockfd, &syn_packet, sizeof(syn_packet), 0, p->ai_addr, p->ai_addrlen)) == -1)
@@ -105,11 +101,14 @@ int main(int argc, char *argv[])
       exit(1);
     }
 
-    if (rcv_packet.type == 1 && rcv_packet.seq_num == 0)
+    //checking for the SYNACK packet
+    if (rcv_packet.type == 1 && rcv_packet.seq_num == expected_seq_num)
     {
-      printf("Receiving packet %d\n", rcv_packet.seq_num + 1);
+      expected_seq_num++;
+      printf("Receiving packet %d\n", expected_seq_num);
+      //sending final ACK for the three-way handshake
       struct packet ack_synack_packet;
-      ack_synack_packet.type = 0;
+      ack_synack_packet.type = 1; //SYN 
       ack_synack_packet.seq_num = client_seq_num;
       ack_synack_packet.fin = 1;
       if ((numbytes = sendto(sockfd, &ack_synack_packet, sizeof(ack_synack_packet), 0, p->ai_addr, p->ai_addrlen)) == -1)
@@ -128,7 +127,40 @@ int main(int argc, char *argv[])
       perror("server: sendto");
       exit(1);
     }
+    printf("hello");
 
+    //window to receive packets
+    struct packet buffer[5] = {NULL, NULL, NULL, NULL, NULL};
+    int lastReceived = -1;
+    int toWrite = 0;
+    int index = 0;
+    while (1)
+      {
+	//receive the packet
+	struct packet pkt;
+	int numBytes = 0;
+	if ((numBytes = recvfrom(sockfd, &pkt, MAXBUFLEN - 1, 0, (struct sockaddr *)p->ai_addr, &(p->ai_addrlen))) == -1)
+	  {
+	    perror("recvfrom");
+	    exit(1);
+	  }
+	//place packet into the buffer       
+	int pkt_seq_num = pkt.seq_num;
+	index = ((pkt_seq_num-DATA)/1000)%5;
+	index--;
+	buffer[index] = pkt;
+	
+	if (lastReceived < index)
+	  lastReceived = index;	
+
+	fprintf(stderr, "%d", lastReceived);
+	
+
+      }
+    
+    
+
+    /*
     // Receiving file
     struct packet file_packet;
     int fileBytes = 0;
@@ -193,7 +225,7 @@ int main(int argc, char *argv[])
           break;
       }
     }
-
+    */
     break;
   }
 

@@ -13,15 +13,20 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <dirent.h>
+#include <math.h>
 
 #define MYPORT "4950" // the port users will be connecting to
-#define DATA 1008
+#define DATA 1000
 #define MAXBUFLEN 100
 #define CWND 5120
 
 struct packet
 {
   int type;
+  //0 = syn
+  //1 = ack/synack
+  //2 = data
+  //3 = retransission
   int seq_num;
   int ack_num;
 
@@ -109,11 +114,13 @@ int main(void)
       exit(1);
     }
 
+    //check for SYN packet
     if (syn_packet.type == 0 && syn_packet.seq_num == 0)
     {
       //successfully received syn packet
       syn_packet.ack_num = syn_packet.seq_num + 1;
       printf("Receiving packet %d\n", syn_packet.ack_num);
+
       //send SYNACK packet
       struct packet synack_packet;
       synack_packet.type = 1;
@@ -137,12 +144,13 @@ int main(void)
       exit(1);
     }
 
-    if (three_way_ack_packet.type == 0 && three_way_ack_packet.seq_num == 1)
+    if (three_way_ack_packet.type == 1 && three_way_ack_packet.seq_num == 1)
     {
       three_way_ack_packet.ack_num = three_way_ack_packet.seq_num + 1;
       printf("Receiving packet %d\n", three_way_ack_packet.ack_num);
     }
 
+    //get the file name from the client
     char filename_buff[100];
     if ((numbytes = recvfrom(sockfd, &filename_buff, 100, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
     {
@@ -163,13 +171,20 @@ int main(void)
     {
       while ((ep = readdir(dp)))
       {
-        if (strcasecmp(ep->d_name, filename_buff) == 0)
+        if (strcmp(ep->d_name, filename_buff) == 0)
         {
           fp = fopen(ep->d_name, "r");
+	  validFile = 1;
         }
       }
       (void)closedir(dp);
     }
+
+    if (!validFile)
+      {
+	fprintf(stderr, "file not found!");
+	exit(1);
+      }
 
     if (fseek(fp, 0, SEEK_END) != 0)
     {
@@ -177,7 +192,54 @@ int main(void)
     }
 
     int file_length = ftell(fp);
+    
+    int totalPackets = file_length/DATA;
+    if (file_length%DATA != 0 && file_length > DATA)
+      totalPackets++;
+   
+    struct packet* packets = (struct packet*) malloc(sizeof(struct packet) * totalPackets);
+
     fseek(fp, 0, SEEK_SET);
+
+    //make packetse and place inside the buffer
+    int i = 0;
+    while (i <= totalPackets)
+      {
+	struct packet data_packet;
+	int bytesRead = fread(data_packet.data, sizeof(char), DATA, fp);
+	data_packet.seq_num = server_seq_num;
+	printf("%d\n", server_seq_num);
+	server_seq_num = server_seq_num + bytesRead;
+	data_packet.data_size = bytesRead;
+	if (i != totalPackets-1)
+	  data_packet.fin = 1;
+	else
+	  data_packet.fin = 0;
+	packets[i] = data_packet;
+	i++;
+      }
+
+    //window size is 5 packets, can send five packets at a time
+    int beginWindow = 0;
+    int endWindow = (totalPackets < 5) ? totalPackets-1 : 4;
+    int lastSentPacket = 0;
+    //begin to send packets
+    while (1)
+      {
+	//send all packets in the window
+	while (lastSentPacket <= totalPackets)
+	  {
+	    if ((numbytes = sendto(sockfd, &packets[lastSentPacket], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
+	      {
+		perror("sendto");
+		exit(1);
+	      }
+	    printf("Sending packet %d 5120\n", packets[lastSentPacket].seq_num);
+	    lastSentPacket++;
+	  }	
+      }
+
+    /*
     if (file_length < DATA)
     {
       struct packet small_file_packet;
@@ -189,8 +251,6 @@ int main(void)
 
       printf("Sending packet %d %d\n", small_file_packet.seq_num, CWND);
       server_seq_num = server_seq_num + 16 + small_file_packet.data_size;
-      //	server_seq_num++;
-      //	printf("%d", server_seq_num);
 
       if ((numbytes = sendto(sockfd, &small_file_packet, sizeof(small_file_packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
       {
@@ -238,7 +298,7 @@ int main(void)
         file_ack_packet.ack_num = file_ack_packet.seq_num + 1;
         printf("Receiving packet %d\n", file_ack_packet.ack_num);
       }
-    }
+      }*/
 
     break;
   }
