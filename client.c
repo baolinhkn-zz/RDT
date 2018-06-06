@@ -127,12 +127,11 @@ int main(int argc, char *argv[])
       perror("server: sendto");
       exit(1);
     }
-    printf("hello");
 
     //window to receive packets
     struct packet buffer[5] = {NULL, NULL, NULL, NULL, NULL};
     int lastReceived = -1;
-    int toWrite = 0;
+    int toWrite = 0; //next packet to write
     int index = 0;
     while (1)
       {
@@ -146,16 +145,21 @@ int main(int argc, char *argv[])
 	  }
 	//place packet into the buffer       
 	int pkt_seq_num = pkt.seq_num;
-	index = ((pkt_seq_num-DATA)/1000)%5;
-	index--;
+	if (pkt_seq_num == expected_seq_num)
+	  {
+	    expected_seq_num = pkt_seq_num + pkt.data_size;
+	  }
+	
+	index = ((pkt_seq_num-1)/1000)%5;
+	fprintf(stderr, "%d", index);
+	
+	fprintf(stderr, "%d", index);
 	buffer[index] = pkt;
 	
 	if (lastReceived < index)
 	  lastReceived = index;	
 
-	fprintf(stderr, "%d", lastReceived);
-	
-
+	printf("Receiving packet %d\n", expected_seq_num);
       }
     
     

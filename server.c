@@ -208,7 +208,6 @@ int main(void)
 	struct packet data_packet;
 	int bytesRead = fread(data_packet.data, sizeof(char), DATA, fp);
 	data_packet.seq_num = server_seq_num;
-	printf("%d\n", server_seq_num);
 	server_seq_num = server_seq_num + bytesRead;
 	data_packet.data_size = bytesRead;
 	if (i != totalPackets-1)
