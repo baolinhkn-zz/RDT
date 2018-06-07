@@ -201,12 +201,13 @@ int main(void)
 
     fseek(fp, 0, SEEK_SET);
 
-    //make packetse and place inside the buffer
+    //make packets and place inside the buffer
     int i = 0;
     while (i <= totalPackets)
       {
 	struct packet data_packet;
-	int bytesRead = fread(data_packet.data, sizeof(char), DATA, fp);
+	int bytesRead = fread(data_packet.data, sizeof(char), DATA-1, fp);
+	data_packet.data[bytesRead] = '\0';
 	data_packet.seq_num = server_seq_num;
 	server_seq_num = server_seq_num + bytesRead;
 	data_packet.data_size = bytesRead;
@@ -220,13 +221,13 @@ int main(void)
 
     //window size is 5 packets, can send five packets at a time
     int beginWindow = 0;
-    int endWindow = (totalPackets < 5) ? totalPackets-1 : 4;
-    int lastSentPacket = 0;
+    int endWindow = (totalPackets < 5) ? totalPackets : 4;
+    int lastSentPacket = -1;
     //begin to send packets
     while (1)
       {
 	//send all packets in the window
-	while (lastSentPacket <= endWindow)
+	while (lastSentPacket < endWindow && endWindow <= totalPackets)
 	  {
 	    if ((numbytes = sendto(sockfd, &packets[lastSentPacket], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
 	      {
@@ -236,20 +237,23 @@ int main(void)
 	    printf("Sending packet %d 5120\n", packets[lastSentPacket].seq_num);
 	    lastSentPacket++;
 	  }	
-	
-
+		
 	//check for an ACK
-	struct packet receved_ack;
+	struct packet received_ack;
         if ((numbytes = recvfrom(sockfd, &received_ack, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
 	  {
 	    perror("recvfrom");
 	    exit(1);
 	  }
-	
-	
 
-
-
+	if (received_ack.type == 1)
+	  {
+	    //move the window
+	    if (received_ack.seq_num >= packets[beginWindow].seq_num && received_ack.seq_num <= packets[endWindow].seq_num)
+	      {
+		int newBegin = ((received_ack.seq_num-1)/1000);
+	      }
+	  }
       }
 
     /*

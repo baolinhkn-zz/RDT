@@ -170,6 +170,13 @@ int main(int argc, char *argv[])
           exit(1);
         }
 
+      //received last packet of the file
+      if (pkt.fin == 1)
+	{
+	  //begin to close the connection
+	  printf(stderr, "last packet received\n");
+	}
+
     }
 
     /*
