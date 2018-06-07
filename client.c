@@ -202,7 +202,7 @@ int main(int argc, char *argv[])
         i = 0;
         while (&buffer[i] != NULL && i < 5) {
           //printf("%s", &buffer[i].data);
-          write(receivedDataFile, &buffer[i].data, strlen(&buffer[i].data));
+          write(receivedDataFile, &buffer[i].data, buffer[i].data_size);
           i++;
         }
       }

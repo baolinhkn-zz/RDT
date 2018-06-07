@@ -1,7 +1,3 @@
-/*
-** listener.c -- a datagram sockets "server" demo
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -196,20 +192,20 @@ int main(void)
     int totalPackets = file_length/DATA;
     if (file_length%DATA != 0 && file_length > DATA)
       totalPackets++;
-   
+
     struct packet* packets = (struct packet*) malloc(sizeof(struct packet) * totalPackets);
 
     fseek(fp, 0, SEEK_SET);
 
     //make packets and place inside the buffer
     int i = 0;
-    while (i <= totalPackets)
+    while (i < totalPackets)
       {
 	struct packet data_packet;
-	int bytesRead = fread(data_packet.data, sizeof(char), DATA-1, fp);
-	data_packet.data[bytesRead] = '\0';
+	int bytesRead = fread(data_packet.data, sizeof(char), DATA, fp);
 	data_packet.seq_num = server_seq_num;
 	server_seq_num = server_seq_num + bytesRead;
+	fprintf(stderr, "%d, %d\n", i, data_packet.seq_num);
 	data_packet.data_size = bytesRead;
 	if (i != totalPackets-1)
 	  data_packet.fin = 1;
@@ -222,18 +218,20 @@ int main(void)
     //window size is 5 packets, can send five packets at a time
     int beginWindow = 0;
     int endWindow = (totalPackets < 5) ? totalPackets : 4;
-    int lastSentPacket = -1;
+    int lastSentPacket = 0;
     //begin to send packets
     while (1)
       {
 	//send all packets in the window
-	while (lastSentPacket < endWindow && endWindow <= totalPackets)
+	while (lastSentPacket <= endWindow && endWindow <= totalPackets)
 	  {
 	    if ((numbytes = sendto(sockfd, &packets[lastSentPacket], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
 	      {
 		perror("sendto");
 		exit(1);
 	      }
+	    fprintf(stderr, "lastSendPacket: %d\n", lastSentPacket);
+	    fprintf(stderr, "%d\n", packets[lastSentPacket].seq_num);
 	    printf("Sending packet %d 5120\n", packets[lastSentPacket].seq_num);
 	    lastSentPacket++;
 	  }	
@@ -252,6 +250,7 @@ int main(void)
 	    if (received_ack.seq_num >= packets[beginWindow].seq_num && received_ack.seq_num <= packets[endWindow].seq_num)
 	      {
 		int newBegin = ((received_ack.seq_num-1)/1000);
+		fprintf(stderr, "%d", newBegin);
 	      }
 	  }
       }
