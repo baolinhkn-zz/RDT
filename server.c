@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -12,8 +13,8 @@
 #include <math.h>
 
 #define MYPORT "4950" // the port users will be connecting to
-#define DATA 1000
-#define MAXBUFLEN 100
+#define DATA 1004
+#define MAXBUFLEN 2048
 #define CWND 5120
 
 struct packet
@@ -23,13 +24,14 @@ struct packet
   //1 = ack/synack
   //2 = data
   //3 = retransission
+  //4 = fin
   int seq_num;
   int ack_num;
 
   int data_size;
-  //end of file, fin = 1
-  //middle of file, fin = 0
-  int fin;
+  //end of file, end_of_file = 1
+  //middle of file, end_of_file = 0
+  int end_of_file;
 
   char data[DATA];
 };
@@ -70,8 +72,7 @@ int main(void)
   // loop through all the results and bind to the first we can
   for (p = servinfo; p != NULL; p = p->ai_next)
   {
-    if ((sockfd = socket(p->ai_family, p->ai_socktype,
-                         p->ai_protocol)) == -1)
+    if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
     {
       perror("server: socket");
       continue;
@@ -103,8 +104,7 @@ int main(void)
   {
     struct packet syn_packet;
 
-    if ((numbytes = recvfrom(sockfd, &syn_packet, MAXBUFLEN - 1, 0,
-                             (struct sockaddr *)&their_addr, &addr_len)) == -1)
+    if ((numbytes = recvfrom(sockfd, &syn_packet, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
     {
       perror("recvfrom");
       exit(1);
@@ -121,7 +121,7 @@ int main(void)
       struct packet synack_packet;
       synack_packet.type = 1;
       synack_packet.seq_num = server_seq_num;
-      synack_packet.fin = 1;
+      synack_packet.end_of_file = 1;
       if ((numbytes = sendto(sockfd, &synack_packet, sizeof(synack_packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
       {
         perror("server: sendto");
@@ -133,8 +133,7 @@ int main(void)
 
     //final ACK of three way handshake
     struct packet three_way_ack_packet;
-    if ((numbytes = recvfrom(sockfd, &three_way_ack_packet, MAXBUFLEN - 1, 0,
-                             (struct sockaddr *)&their_addr, &addr_len)) == -1)
+    if ((numbytes = recvfrom(sockfd, &three_way_ack_packet, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
     {
       perror("recvfrom");
       exit(1);
@@ -170,17 +169,17 @@ int main(void)
         if (strcmp(ep->d_name, filename_buff) == 0)
         {
           fp = fopen(ep->d_name, "r");
-	  validFile = 1;
+          validFile = 1;
         }
       }
       (void)closedir(dp);
     }
 
     if (!validFile)
-      {
-	fprintf(stderr, "file not found!");
-	exit(1);
-      }
+    {
+      fprintf(stderr, "file not found!");
+      exit(1);
+    }
 
     if (fseek(fp, 0, SEEK_END) != 0)
     {
@@ -188,133 +187,105 @@ int main(void)
     }
 
     int file_length = ftell(fp);
-    
-    int totalPackets = file_length/DATA;
-    if (file_length%DATA != 0 && file_length > DATA)
+
+    int totalPackets = file_length / DATA;
+    if (file_length < DATA)
+      totalPackets = 1;
+    if (file_length % DATA != 0 && file_length > DATA)
       totalPackets++;
 
-    struct packet* packets = (struct packet*) malloc(sizeof(struct packet) * totalPackets);
+    struct packet *packets = (struct packet *)malloc(sizeof(struct packet) * totalPackets);
 
     fseek(fp, 0, SEEK_SET);
 
     //make packets and place inside the buffer
     int i = 0;
     while (i < totalPackets)
-      {
-	struct packet data_packet;
-	int bytesRead = fread(data_packet.data, sizeof(char), DATA, fp);
-	data_packet.seq_num = server_seq_num;
-	server_seq_num = server_seq_num + bytesRead;
-	fprintf(stderr, "%d, %d\n", i, data_packet.seq_num);
-	data_packet.data_size = bytesRead;
-	if (i != totalPackets-1)
-	  data_packet.fin = 1;
-	else
-	  data_packet.fin = 0;
-	packets[i] = data_packet;
-	i++;
-      }
+    {
+      struct packet data_packet;
+      int bytesRead = fread(packets[i].data, 1, DATA, fp);
+      packets[i].seq_num = server_seq_num;
+      server_seq_num = server_seq_num + bytesRead;
+      packets[i].data_size = bytesRead;
+      if (i != totalPackets - 1)
+        packets[i].end_of_file = 0;
+      else
+        packets[i].end_of_file = 1;
+      //packets[i] = data_packet;
+      i++;
+    }
+
+    // for (i = 0; i < totalPackets; i++) {
+    //   fprintf(stderr, "\n%d:\n%s", i, packets[i].data);
+    // }
 
     //window size is 5 packets, can send five packets at a time
     int beginWindow = 0;
-    int endWindow = (totalPackets < 5) ? totalPackets : 4;
-    int lastSentPacket = 0;
-    //begin to send packets
+    int endWindow = (totalPackets < 5) ? totalPackets - 1 : 4;
+    int nextPacket = 0;
+
+    // Set up timer
+    fd_set rfds;
+    struct timeval tv;
+    int retval;
+
+    //sending packets
     while (1)
-      {
-	//send all packets in the window
-	while (lastSentPacket <= endWindow && endWindow <= totalPackets)
-	  {
-	    if ((numbytes = sendto(sockfd, &packets[lastSentPacket], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
-	      {
-		perror("sendto");
-		exit(1);
-	      }
-	    fprintf(stderr, "lastSendPacket: %d\n", lastSentPacket);
-	    fprintf(stderr, "%d\n", packets[lastSentPacket].seq_num);
-	    printf("Sending packet %d 5120\n", packets[lastSentPacket].seq_num);
-	    lastSentPacket++;
-	  }	
-		
-	//check for an ACK
-	struct packet received_ack;
-        if ((numbytes = recvfrom(sockfd, &received_ack, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
-	  {
-	    perror("recvfrom");
-	    exit(1);
-	  }
-
-	if (received_ack.type == 1)
-	  {
-	    //move the window
-	    if (received_ack.seq_num >= packets[beginWindow].seq_num && received_ack.seq_num <= packets[endWindow].seq_num)
-	      {
-		int newBegin = ((received_ack.seq_num-1)/1000);
-		fprintf(stderr, "%d", newBegin);
-	      }
-	  }
-      }
-
-    /*
-    if (file_length < DATA)
     {
-      struct packet small_file_packet;
-      int bytesRead = fread(small_file_packet.data, sizeof(char), file_length, fp);
-      small_file_packet.data[file_length] = '\0';
-      small_file_packet.seq_num = server_seq_num;
-      small_file_packet.data_size = file_length;
-      small_file_packet.fin = 1;
-
-      printf("Sending packet %d %d\n", small_file_packet.seq_num, CWND);
-      server_seq_num = server_seq_num + 16 + small_file_packet.data_size;
-
-      if ((numbytes = sendto(sockfd, &small_file_packet, sizeof(small_file_packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
+      //send all packets in the window
+      while (nextPacket <= endWindow && endWindow < totalPackets)
       {
-        perror("sendto");
-        exit(1);
-      }
-    }
-    else
-    {
-      int sent = 0;
-      while (!sent)
-      {
-        //create packet
-        struct packet large_file_packet;
-        int bytes_read = fread(large_file_packet.data, sizeof(char), DATA, fp);
-        file_length = file_length - bytes_read;
-        large_file_packet.seq_num = server_seq_num;
-        large_file_packet.data_size = bytes_read;
-        if (file_length <= 0)
-        {
-          sent = 1;
-          large_file_packet.fin = 1;
-        }
-        else
-          large_file_packet.fin = 0;
-        //need an offset for the file
-        //send file
-        printf("Sending packet %d %d\n", large_file_packet.seq_num, CWND);
-        server_seq_num = server_seq_num + 1024;
-
-        if ((numbytes = sendto(sockfd, &large_file_packet, sizeof(large_file_packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
+        if ((numbytes = sendto(sockfd, &packets[nextPacket], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
         {
           perror("sendto");
           exit(1);
         }
-        //wait for the ACK for that part of the file
-        struct packet file_ack_packet;
-        if ((numbytes = recvfrom(sockfd, &file_ack_packet, MAXBUFLEN - 1, 0,
-                                 (struct sockaddr *)&their_addr, &addr_len)) == -1)
+        fprintf(stderr, "nextPacket: %d\n", nextPacket);
+        nextPacket++;
+      }
+
+      // Watch sockfd to see when it has input
+      FD_ZERO(&rfds);
+      FD_SET(sockfd, &rfds);
+
+      tv.tv_sec = 0.5;
+      tv.tv_usec = 0;
+      retval = select(1, &rfds, NULL, NULL, &tv);
+
+      if (retval < 0)
+        perror("select()");
+      else if (retval)
+      {
+        // Haven't timed out
+        //check for an ACK
+        struct packet received_ack;
+        if ((numbytes = recvfrom(sockfd, &received_ack, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
         {
           perror("recvfrom");
           exit(1);
         }
 
-        file_ack_packet.ack_num = file_ack_packet.seq_num + 1;
-        printf("Receiving packet %d\n", file_ack_packet.ack_num);
+        //receive an ACK, check if the window should be moved
+        if (received_ack.type == 1)
+        {
+          //move the window
+          if (received_ack.ack_num >= packets[beginWindow].seq_num && received_ack.seq_num <= packets[endWindow].seq_num)
+          {
+            int newBegin = ((received_ack.ack_num - 1) / 1000);
+            endWindow = endWindow + (newBegin - beginWindow);
+            if (endWindow > totalPackets)
+              endWindow = totalPackets;
+            beginWindow = newBegin;
+          }
+        }
       }
-      }*/
+
+      //client has received all of the data, break to begin TCP closing process
+      if (beginWindow == endWindow)
+        break;
+    }
+
+    //close the TCP connection
 
     break;
   }

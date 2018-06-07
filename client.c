@@ -11,8 +11,8 @@
 #include <netdb.h>
 
 #define SERVERPORT "4950" // the port users will be connecting to
-#define DATA 1000
-#define MAXBUFLEN 100
+#define DATA 1004
+#define MAXBUFLEN 2048
 #define CWND 5120
 
 struct packet
@@ -22,13 +22,14 @@ struct packet
   //1 = ack/synack
   //2 = data
   //3 = retransmission
+  //4 = fin
   int seq_num;
   int ack_num;
 
   int data_size;
-  //end of file, fin = 1
-  //middle of file, fin = 0
-  int fin;
+  //end of file, end_of_file = 1
+  //middle of file, end_of_file = 0
+  int end_of_file;
 
   char data[DATA];
 };
@@ -86,7 +87,7 @@ int main(int argc, char *argv[])
     struct packet syn_packet;
     syn_packet.type = 0; //SYN packet
     syn_packet.seq_num = client_seq_num;
-    syn_packet.fin = 1;
+    syn_packet.end_of_file = 1;
     if ((numbytes = sendto(sockfd, &syn_packet, sizeof(syn_packet), 0, p->ai_addr, p->ai_addrlen)) == -1)
     {
       perror("client: sendto");
@@ -95,8 +96,7 @@ int main(int argc, char *argv[])
     printf("Sending packet 0 SYN\n");
     client_seq_num++;
 
-    if ((numbytes = recvfrom(sockfd, &rcv_packet, MAXBUFLEN - 1, 0,
-                             (struct sockaddr *)p->ai_addr, &(p->ai_addrlen))) == -1)
+    if ((numbytes = recvfrom(sockfd, &rcv_packet, MAXBUFLEN - 1, 0, (struct sockaddr *)p->ai_addr, &(p->ai_addrlen))) == -1)
     {
       perror("recvfrom");
       exit(1);
@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
       struct packet ack_synack_packet;
       ack_synack_packet.type = 1; //SYN
       ack_synack_packet.seq_num = client_seq_num;
-      ack_synack_packet.fin = 1;
+      ack_synack_packet.end_of_file = 1;
       if ((numbytes = sendto(sockfd, &ack_synack_packet, sizeof(ack_synack_packet), 0, p->ai_addr, p->ai_addrlen)) == -1)
       {
         perror("server: sendto");
@@ -130,19 +130,19 @@ int main(int argc, char *argv[])
     }
 
     //window to receive packets
-    struct packet buffer[5] = {NULL, NULL, NULL, NULL, NULL};
+    struct packet buffer[5];
+    int itemsInBuffer = 0;
     int lastReceived = -1;
     int toWrite = 0; //next packet to write
     int index = 0;
     int bufferFull = 0;
 
     // Create file to write to
-    int receivedDataFile = open("received.data", O_RDWR | O_CREAT | O_APPEND);
+    int receivedDataFile = open("received.data", O_RDWR | O_CREAT | O_APPEND | O_TRUNC);
     if (receivedDataFile < 0) {
       perror("open");
       exit(1);
     }
-
     
     while (1)
     {
@@ -155,8 +155,6 @@ int main(int argc, char *argv[])
         exit(1);
       }
 
-      //printf("%s\n", pkt.data);
-
       //place packet into the buffer
       int pkt_seq_num = pkt.seq_num;
       if (pkt_seq_num == expected_seq_num)
@@ -164,13 +162,16 @@ int main(int argc, char *argv[])
         expected_seq_num = pkt_seq_num + pkt.data_size;
       }
 
-      // If packet's fin value is 1 - reached EOF
-      if (pkt.fin)
-        bufferFull = 1;
-
       //add packet into corresponding spot in the window
       index = ((pkt_seq_num - 1) / 1000) % 5;
       buffer[index] = pkt;
+      itemsInBuffer++;
+
+      // If packet's fin value is 1 - reached EOF OR we have a full buffer
+      if (pkt.end_of_file || itemsInBuffer == 5)
+      {
+        bufferFull = 1;
+      }
 
       if (lastReceived < index)
         lastReceived = index;
@@ -191,92 +192,24 @@ int main(int argc, char *argv[])
       // Write file data to received.data in the directory
       int i;
 
-      for (i = 0 ; i < 5; i++) {
-        if (&buffer[i] != NULL && i == 4) {
-          bufferFull = 1;
-        }
-      }
-
       if (bufferFull) {
         // Write buffer to file
         i = 0;
-        while (&buffer[i] != NULL && i < 5) {
-          //printf("%s", &buffer[i].data);
+
+        while (i < itemsInBuffer){
           write(receivedDataFile, &buffer[i].data, buffer[i].data_size);
           i++;
         }
+
+        itemsInBuffer = 0;
+        bufferFull = 0;
       }
 
+      
     }
-
-    /*
-    // Receiving file
-    struct packet file_packet;
-    int fileBytes = 0;
-    if ((fileBytes = recvfrom(sockfd, &file_packet, MAXBUFLEN - 1, 0, (struct sockaddr *)p->ai_addr, &(p->ai_addrlen))) == -1)
-    {
-      perror("recvfrom");
-      exit(1);
-    }
-
-    if (file_packet.fin == 1)
-    {
-      file_packet.ack_num = file_packet.seq_num + file_packet.data_size + 16;
-      printf("Receiving packet %d\n", file_packet.ack_num);
-      //send the ACK
-    }
-    else //file_packet.fin == 0, there are more packets to receive
-    {
-      file_packet.ack_num = file_packet.seq_num + file_packet.data_size + 16;
-      printf("Receiving packet %d\n", file_packet.ack_num);
-
-      //send the ACK
-      struct packet firstACK_packet;
-      firstACK_packet.type = 0;
-      firstACK_packet.seq_num = client_seq_num;
-      firstACK_packet.fin = 1;
-      if ((numbytes = sendto(sockfd, &firstACK_packet, sizeof(firstACK_packet), 0, p->ai_addr, p->ai_addrlen)) == -1)
-      {
-        perror("server: sendto");
-        exit(1);
-      }
-      printf("Sending packet %d\n", firstACK_packet.seq_num);
-      client_seq_num++;
-
-      //continually receive packets and send ACKs until file is complete
-      while (1)
-      {
-        struct packet large_file_packet;
-        int fileBytes = 0;
-        if ((fileBytes = recvfrom(sockfd, &large_file_packet, MAXBUFLEN - 1, 0, (struct sockaddr *)p->ai_addr, &(p->ai_addrlen))) == -1)
-        {
-          perror("recvfrom");
-          exit(1);
-        }
-
-        large_file_packet.ack_num = large_file_packet.seq_num + large_file_packet.data_size + 16;
-        printf("Receiving packet %d\n", large_file_packet.ack_num);
-
-        //send the ACK
-        struct packet ACK_packet;
-        ACK_packet.type = 0;
-        ACK_packet.seq_num = client_seq_num;
-        ACK_packet.fin = 1;
-        if ((numbytes = sendto(sockfd, &ACK_packet, sizeof(ACK_packet), 0, p->ai_addr, p->ai_addrlen)) == -1)
-        {
-          perror("server: sendto");
-          exit(1);
-        }
-        printf("Sending packet %d\n", ACK_packet.seq_num);
-        client_seq_num++;
-
-        if (large_file_packet.fin == 1)
-          break;
-      }
-    }
-    */
     break;
   }
+
 
   close(sockfd);
 
