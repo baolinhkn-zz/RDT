@@ -226,7 +226,7 @@ int main(void)
     while (1)
       {
 	//send all packets in the window
-	while (lastSentPacket <= totalPackets)
+	while (lastSentPacket <= endWindow)
 	  {
 	    if ((numbytes = sendto(sockfd, &packets[lastSentPacket], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
 	      {
@@ -236,6 +236,20 @@ int main(void)
 	    printf("Sending packet %d 5120\n", packets[lastSentPacket].seq_num);
 	    lastSentPacket++;
 	  }	
+	
+
+	//check for an ACK
+	struct packet receved_ack;
+        if ((numbytes = recvfrom(sockfd, &received_ack, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
+	  {
+	    perror("recvfrom");
+	    exit(1);
+	  }
+	
+	
+
+
+
       }
 
     /*
