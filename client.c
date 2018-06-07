@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
       printf("Receiving packet %d\n", expected_seq_num);
       //sending final ACK for the three-way handshake
       struct packet ack_synack_packet;
-      ack_synack_packet.type = 1; //SYN 
+      ack_synack_packet.type = 1; //SYN
       ack_synack_packet.seq_num = client_seq_num;
       ack_synack_packet.fin = 1;
       if ((numbytes = sendto(sockfd, &ack_synack_packet, sizeof(ack_synack_packet), 0, p->ai_addr, p->ai_addrlen)) == -1)
@@ -134,40 +134,43 @@ int main(int argc, char *argv[])
     int toWrite = 0; //next packet to write
     int index = 0;
     while (1)
+    {
+      //receive the packet
+      struct packet pkt;
+      int numBytes = 0;
+      if ((numBytes = recvfrom(sockfd, &pkt, MAXBUFLEN - 1, 0, (struct sockaddr *)p->ai_addr, &(p->ai_addrlen))) == -1)
       {
-	//receive the packet
-	struct packet pkt;
-	int numBytes = 0;
-	if ((numBytes = recvfrom(sockfd, &pkt, MAXBUFLEN - 1, 0, (struct sockaddr *)p->ai_addr, &(p->ai_addrlen))) == -1)
-	  {
-	    perror("recvfrom");
-	    exit(1);
-	  }
-	//place packet into the buffer       
-	int pkt_seq_num = pkt.seq_num;
-	if (pkt_seq_num == expected_seq_num)
-	  {
-	    expected_seq_num = pkt_seq_num + pkt.data_size;
-	  }
-
-	//add packet into corresponding spot in the window
-	index = ((pkt_seq_num-1)/1000)%5;
-	buffer[index] = pkt;
-	
-	if (lastReceived < index)
-	  lastReceived = index;	
-	
-	//send the ACK
-	struct packet ACK;
-	ACK.type = 1;
-	ACK.ack_num = expected_seq_num;
-	
-	
-
-	printf("Receiving packet %d\n", expected_seq_num);
+        perror("recvfrom");
+        exit(1);
       }
-    
-    
+      //place packet into the buffer
+      int pkt_seq_num = pkt.seq_num;
+      if (pkt_seq_num == expected_seq_num)
+      {
+        expected_seq_num = pkt_seq_num + pkt.data_size;
+      }
+
+      //add packet into corresponding spot in the window
+      index = ((pkt_seq_num - 1) / 1000) % 5;
+      buffer[index] = pkt;
+
+      if (lastReceived < index)
+        lastReceived = index;
+
+      printf("Receiving packet %d\n", expected_seq_num);
+
+      //send the ACK - no need to print "sending packet [ack num]"
+      struct packet ACK;
+      ACK.type = 1;
+      ACK.ack_num = expected_seq_num;
+
+      if ((numbytes = sendto(sockfd, &ACK, sizeof(ACK), 0, p->ai_addr, p->ai_addrlen)) == -1)
+        {
+          perror("server: sendto");
+          exit(1);
+        }
+
+    }
 
     /*
     // Receiving file
