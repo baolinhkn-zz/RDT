@@ -1,0 +1,5 @@
+default:
+	@gcc -Wall -Wextra -o server server.c
+	@gcc -Wall -Wextra -o client cáÿdefault:
+	@gcc -Wall -Wextra -o server server.c
+	@gcc -Wall -Wextra -o client cáÿ

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/types.h>
@@ -133,6 +134,16 @@ int main(int argc, char *argv[])
     int lastReceived = -1;
     int toWrite = 0; //next packet to write
     int index = 0;
+    int bufferFull = 0;
+
+    // Create file to write to
+    int receivedDataFile = open("received.data", O_RDWR | O_CREAT | O_APPEND);
+    if (receivedDataFile < 0) {
+      perror("open");
+      exit(1);
+    }
+
+    
     while (1)
     {
       //receive the packet
@@ -143,12 +154,19 @@ int main(int argc, char *argv[])
         perror("recvfrom");
         exit(1);
       }
+
+      //printf("%s\n", pkt.data);
+
       //place packet into the buffer
       int pkt_seq_num = pkt.seq_num;
       if (pkt_seq_num == expected_seq_num)
       {
         expected_seq_num = pkt_seq_num + pkt.data_size;
       }
+
+      // If packet's fin value is 1 - reached EOF
+      if (pkt.fin)
+        bufferFull = 1;
 
       //add packet into corresponding spot in the window
       index = ((pkt_seq_num - 1) / 1000) % 5;
@@ -169,6 +187,25 @@ int main(int argc, char *argv[])
           perror("server: sendto");
           exit(1);
         }
+
+      // Write file data to received.data in the directory
+      int i;
+
+      for (i = 0 ; i < 5; i++) {
+        if (&buffer[i] != NULL && i == 4) {
+          bufferFull = 1;
+        }
+      }
+
+      if (bufferFull) {
+        // Write buffer to file
+        i = 0;
+        while (&buffer[i] != NULL && i < 5) {
+          //printf("%s", &buffer[i].data);
+          write(receivedDataFile, &buffer[i].data, strlen(&buffer[i].data));
+          i++;
+        }
+      }
 
     }
 
