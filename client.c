@@ -149,15 +149,20 @@ int main(int argc, char *argv[])
 	  {
 	    expected_seq_num = pkt_seq_num + pkt.data_size;
 	  }
-	
+
+	//add packet into corresponding spot in the window
 	index = ((pkt_seq_num-1)/1000)%5;
-	fprintf(stderr, "%d", index);
-	
-	fprintf(stderr, "%d", index);
 	buffer[index] = pkt;
 	
 	if (lastReceived < index)
 	  lastReceived = index;	
+	
+	//send the ACK
+	struct packet ACK;
+	ACK.type = 1;
+	ACK.ack_num = expected_seq_num;
+	
+	
 
 	printf("Receiving packet %d\n", expected_seq_num);
       }
