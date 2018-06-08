@@ -312,11 +312,10 @@ int main(void)
           exit(1);
         }
 
+        timeout.it_inverval.tv_sec = 0;
+        timeout.it_interval.tv_nsec = 0;
         timeout.it_value.tv_sec = 0;
         timeout.it_value.tv_nsec = 500000000;
-
-        // Fill times buffer with timer file descriptors
-        timer_fds[nextPacket].fd = timer_fd;
 
         // Set timeout
         ret = timerfd_settime(timer_fd, 0, &timeout, NULL);
@@ -325,6 +324,9 @@ int main(void)
           perror("timerfd_settime");
           exit(1);
         }
+
+        // Fill times buffer with timer file descriptors
+        timer_fds[nextPacket].fd = timer_fd;
 
         printf("Sending packet %d 5120\n", packets[nextPacket].seq_num); //packets[nextPacket].seq_num);
         nextPacket++;
