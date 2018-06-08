@@ -147,13 +147,36 @@ int main(void)
 
     //get the file name from the client
     char filename_buff[100];
-    if ((numbytes = recvfrom(sockfd, &filename_buff, 100, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
+    if ((numbytes = recvfrom(sockfd, &filename_buff, MAXBUFLEN, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
     {
       perror("recvfrom");
       exit(1);
     }
 
     printf("Receiving filename %s\n", filename_buff);
+
+    struct packet client_fin;
+    if ((numbytes = recvfrom(sockfd, &client_fin, MAXBUFLEN, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
+    {
+      perror("recvfrom");
+      exit(1);
+    }
+
+    //received the fin from the client
+    if (client_fin.type == 4)
+    {
+      //send the ACK
+      struct packet client_fin_ack;
+      client_fin_ack.type = 1;
+      client_fin_ack.ack_num = client_fin.seq_num + 1;
+      if ((numbytes = sendto(sockfd, &client_fin_ack, sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
+      {
+        perror("server: send to");
+        exit(1);
+      }
+
+      printf("Receiving packet %d\n", client_fin.seq_num+1);
+    }
 
     // Find the file in the current working directory
     DIR *dp;
@@ -240,7 +263,7 @@ int main(void)
           perror("sendto");
           exit(1);
         }
-        fprintf(stderr, "nextPacket: %d\n", nextPacket);
+        printf("Sending packet %d 5120\n", packets[nextPacket].seq_num);
         nextPacket++;
       }
 
@@ -282,7 +305,10 @@ int main(void)
 
       //client has received all of the data, break to begin TCP closing process
       if (beginWindow == endWindow)
+      {
+        fprintf(stderr, "Begin to send TCP close\n");
         break;
+      }
     }
 
     //close the TCP connection

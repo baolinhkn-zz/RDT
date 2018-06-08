@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
       perror("client: sendto");
       exit(1);
     }
-    printf("Sending packet 0 SYN\n");
+    printf("Sending packet 0 5120 SYN\n");
     client_seq_num++;
 
     if ((numbytes = recvfrom(sockfd, &rcv_packet, MAXBUFLEN - 1, 0, (struct sockaddr *)p->ai_addr, &(p->ai_addrlen))) == -1)
@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
         perror("server: sendto");
         exit(1);
       }
-      printf("Sending packet %d SYN\n", ack_synack_packet.seq_num);
+      printf("Sending packet %d 5120 SYN\n", ack_synack_packet.seq_num);
       client_seq_num++;
     }
 
@@ -129,6 +129,20 @@ int main(int argc, char *argv[])
       exit(1);
     }
 
+    //send the FIN
+    struct packet fin;
+    fin.type = 4;
+    fin.seq_num = client_seq_num;
+
+    if ((numbytes = sendto(sockfd, &fin, sizeof(fin), 0, p->ai_addr, p->ai_addrlen)) == -1)
+    {
+      perror("server: sendto");
+      exit(1);
+    }
+
+    printf("Sending packet %d 5120 FIN\n", client_seq_num);
+    client_seq_num++;
+
     //window to receive packets
     struct packet buffer[5];
     int itemsInBuffer = 0;
@@ -139,11 +153,12 @@ int main(int argc, char *argv[])
 
     // Create file to write to
     int receivedDataFile = open("received.data", O_RDWR | O_CREAT | O_APPEND | O_TRUNC);
-    if (receivedDataFile < 0) {
+    if (receivedDataFile < 0)
+    {
       perror("open");
       exit(1);
     }
-    
+
     while (1)
     {
       //receive the packet
@@ -184,19 +199,21 @@ int main(int argc, char *argv[])
       ACK.ack_num = expected_seq_num;
 
       if ((numbytes = sendto(sockfd, &ACK, sizeof(ACK), 0, p->ai_addr, p->ai_addrlen)) == -1)
-        {
-          perror("server: sendto");
-          exit(1);
-        }
+      {
+        perror("server: sendto");
+        exit(1);
+      }
 
       // Write file data to received.data in the directory
       int i;
 
-      if (bufferFull) {
+      if (bufferFull)
+      {
         // Write buffer to file
         i = 0;
 
-        while (i < itemsInBuffer){
+        while (i < itemsInBuffer)
+        {
           write(receivedDataFile, &buffer[i].data, buffer[i].data_size);
           i++;
         }
@@ -205,11 +222,11 @@ int main(int argc, char *argv[])
         bufferFull = 0;
       }
 
-      
+      if (pkt.end_of_file)
+        break;
     }
     break;
   }
-
 
   close(sockfd);
 
