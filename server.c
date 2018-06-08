@@ -173,8 +173,6 @@ int main(void)
       exit(1);
     }
 
-    printf("Receiving filename %s\n", filename_buff);
-
     struct packet client_fin;
     if ((numbytes = recvfrom(sockfd, &client_fin, MAXBUFLEN, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
     {
@@ -393,10 +391,8 @@ int main(void)
       }
 
       //client has received all of the data, break to begin TCP closing process
-//      fprintf(stderr, "%d %d\n", nextPacket, totalPackets);
       if (nextPacket == totalPackets && !finSent)
       {
-//        fprintf(stderr, "trying to close");
         struct packet fin_pkt;
         fin_pkt.type = 4;
         fin_pkt.seq_num = server_seq_num;
@@ -410,27 +406,6 @@ int main(void)
         printf("Sending packet %d 5120 FIN\n", server_seq_num);
         server_seq_num++;
         finSent = 1;
-        //wait for the ACK
-        // struct packet ack_fin_pkt;
-        // if ((numbytes = recvfrom(sockfd, &ack_fin_pkt, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
-        // {
-        //   perror("server: recvfrom");
-        //   exit(1);
-        // }
-        // fprintf(stderr, "%d %d %d\n", ack_fin_pkt.ack_num, last_file_seq_num, ack_fin_pkt.type);
-        // if (ack_fin_pkt.type == 4 && ack_fin_pkt.ack_num == last_file_seq_num)
-        // {
-        //   fprintf(stderr, "closing connection");
-        //   //successfully closed
-        //   closed = 1;
-        //   break;
-        // }
-        // else
-        // {
-        //   fprintf(stderr, "%d", ack_fin_pkt.type);
-        //   fprintf(stderr, "Error receiving ACK");
-        //   exit(1);
-        // }
       }
     }
     break;
