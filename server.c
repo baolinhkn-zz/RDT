@@ -380,7 +380,7 @@ int main(void)
 
         if (timer_fds[time_index].revents & POLLIN)
         {
-          fprintf(stderr, "%d %d\n", time_index, i);
+          //fprintf(stderr, "%d %d\n", time_index, i);
           // One of the timers has timed out
           packets[i].type = 3;
           if ((numbytes = sendto(sockfd, &packets[i], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
@@ -389,7 +389,7 @@ int main(void)
             exit(1);
           }
 
-          printf("Sending packet %d 5120 Retransmission\n", packets[i].seq_num);
+          //printf("Sending packet %d 5120 Retransmission\n", packets[i].seq_num);
         }
 
         time_index++;
@@ -414,7 +414,6 @@ int main(void)
           int toClose = (received_ack_num/DATA)%5;
           fprintf(stderr, "to close: %d\n", toClose);
           fprintf(stderr, "ack num received: %d\n", received_ack_num);
-          exit(1);
 
           //move the window
           if (received_ack.ack_num >= packets[beginWindow].seq_num && received_ack.ack_num <= packets[endWindow].seq_num)
