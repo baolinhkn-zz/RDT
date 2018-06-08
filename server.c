@@ -430,10 +430,9 @@ int main(void)
         timer_fds[6].events = POLLIN;
       }
     }
-    break;
+    //break;
   }
-
-
+  
   close(sockfd);
   return 0;
 }

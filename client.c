@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
     int syn_timer_fd = -1;
 
     syn_timer_fd = timerfd_create(CLOCK_MONOTONIC, 0);
-    if (timer_fd <= 0)
+    if (syn_timer_fd <= 0)
     {
       perror("timerfd_create");
       exit(1);
@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
     syn_timeout.it_value.tv_nsec = 500000000;
 
     //set the timeout
-    ret = timerfd_settime(syn_timer_fd, 0, &syn_timeout, NULL);
+    int ret = timerfd_settime(syn_timer_fd, 0, &syn_timeout, NULL);
     if (ret)
     {
       perror("timerfd_settime");
