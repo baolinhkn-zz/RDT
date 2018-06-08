@@ -274,6 +274,8 @@ int main(void)
       timer_fds[i].events = POLLIN;
     }
 
+    timer_fds[5].fd = sockfd;
+
     //sending packets
     while (1)
     {
@@ -416,7 +418,7 @@ int main(void)
           int toClose = (received_ack_num/DATA)%5;
           fprintf(stderr, "to close: %d\n", toClose);
           fprintf(stderr, "ack num received: %d\n", received_ack_num);
-
+          exit(1);
           //move the window
           if (received_ack.ack_num >= packets[beginWindow].seq_num && received_ack.ack_num <= packets[endWindow].seq_num)
           {
