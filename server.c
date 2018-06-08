@@ -326,7 +326,7 @@ int main(void)
         }
 
         // Fill times buffer with timer file descriptors
-        int timerIndex = ((packets[nextPacket].seq_num/DATA)%5) - 1;
+        int timerIndex = ((packets[nextPacket].seq_num/DATA)%5);
         fprintf(stderr, "timerIndex: %d\n", timerIndex);
         timer_fds[nextPacket].fd = timer_fd;
 
@@ -384,7 +384,7 @@ int main(void)
 
         if (timer_fds[time_index].revents & POLLIN)
         {
-          fprintf(stderr, "hello timed out ?");
+          fprintf(stderr, "hello timed out ?\n");
           //fprintf(stderr, "%d %d\n", time_index, i);
           // One of the timers has timed out
           /*packets[i].type = 3;
