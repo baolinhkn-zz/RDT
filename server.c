@@ -385,7 +385,7 @@ int main(void)
       }
 
       //client has received all of the data, break to begin TCP closing process
-      if (nextPacket == totalPackets && !finSent)
+      if ((nextPacket == totalPackets) && !finSent)
       {
         struct packet fin_pkt;
         fin_pkt.type = 4;
@@ -430,10 +430,10 @@ int main(void)
         timer_fds[6].events = POLLIN;
       }
     }
+    break;
   }
-  break;
-}
 
-close(sockfd);
-return 0;
+
+  close(sockfd);
+  return 0;
 }
