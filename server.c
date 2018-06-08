@@ -386,17 +386,17 @@ int main(void)
 
         if (timer_fds[time_index].revents & POLLIN)
         {
-          fprintf(stderr, "time-index: %d\n", time_index);
+          //fprintf(stderr, "time-index: %d\n", time_index);
           //fprintf(stderr, "%d %d\n", time_index, i);
           // One of the timers has timed out
-          /*packets[i].type = 3;
+          packets[i].type = 3;
           if ((numbytes = sendto(sockfd, &packets[i], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
           {
             perror("sendto");
             exit(1);
-          }*/
+          }
 
-          //printf("Sending packet %d 5120 Retransmission\n", packets[i].seq_num);
+          printf("Sending packet %d 5120 Retransmission\n", packets[i].seq_num);
         }
 
         time_index++;
