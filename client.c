@@ -198,6 +198,11 @@ int main(int argc, char *argv[])
         else //pkt.type == 2 or a retransmitted packet that had been lost
         {
           int pkt_seq_num = pkt.seq_num;
+          //check if the packet is in the window
+          if (pkt_seq_num > expected_seq_num + 5120)
+          {
+            continue;
+          }
           if (pkt_seq_num == expected_seq_num)
           {
             expected_seq_num = pkt_seq_num + pkt.data_size;
