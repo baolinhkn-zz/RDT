@@ -383,6 +383,7 @@ int main(void)
 
         if (timer_fds[time_index].revents & POLLIN)
         {
+          fprintf(stderr, "hello timed out ?");
           //fprintf(stderr, "%d %d\n", time_index, i);
           // One of the timers has timed out
           /*packets[i].type = 3;
@@ -398,7 +399,7 @@ int main(void)
         time_index++;
       }
 
-      fprintf(stderr, "exited loop");
+      fprintf(stderr, "exited loop\n");
 
       // Poll for input from the socket - receiving ACKS
       if (timer_fds[5].revents & POLLIN)
