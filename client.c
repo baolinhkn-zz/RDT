@@ -190,7 +190,6 @@ int main(int argc, char *argv[])
         int pkt_seq_num = pkt.seq_num;
         if (pkt_seq_num == expected_seq_num)
         {
-          fprintf(stderr, "%d", pkt.data_size);
           expected_seq_num = pkt_seq_num + pkt.data_size;
         }
 
@@ -244,7 +243,7 @@ int main(int argc, char *argv[])
       {
         struct packet server_fin_ack;
         server_fin_ack.type = 4;
-        server_fin_ack.seq_num = pkt.seq_num + 1;
+        server_fin_ack.ack_num = pkt.seq_num + 1;
         if ((numbytes = sendto(sockfd, &server_fin_ack, sizeof(struct packet), 0, p->ai_addr, p->ai_addrlen)) == -1)
         {
           perror("client: sendto");

@@ -11,6 +11,10 @@
 #include <netdb.h>
 #include <dirent.h>
 #include <math.h>
+#include <sys/poll.h>
+#include <time.h>
+#include <sys/time.h>
+#include <sys/timerfd.h>
 
 #define MYPORT "4950" // the port users will be connecting to
 #define DATA 996
@@ -114,6 +118,7 @@ int main(void)
   int last_file_seq_num = 0;
 
   int closed = 0;
+  int finSent = 0;
   while (!closed)
   {
     struct packet syn_packet;
@@ -248,7 +253,6 @@ int main(void)
       packets[i].seq_num = server_seq_num;
       server_seq_num = server_seq_num + bytesRead;
       packets[i].data_size = bytesRead;
-      fprintf(stderr, "%d: %d %d\n", i,server_seq_num,  bytesRead);
       packets[i].type = 2;
       last_file_seq_num = server_seq_num;
       if (i != totalPackets - 1)
@@ -256,9 +260,6 @@ int main(void)
       else
       {
         packets[i].end_of_file = 1;
-        fprintf(stderr, "%d\n", i);
-        last_file_seq_num = last_file_seq_num + bytesRead;
-        fprintf(stderr, "last file sequence number: %d\n", last_file_seq_num);
       }
       i++;
     }
@@ -268,35 +269,48 @@ int main(void)
     int endWindow = (totalPackets < 5) ? totalPackets - 1 : 4;
     int nextPacket = 0;
 
+    struct pollfd timer_fds[5];
+    for (i = 0; i < 5; i++) {
+      timer_fds[i].events = POLLIN;
+    }
+
     //sending packets
     while (1)
     {
-      // Check for unacked packets
-      // for (i = beginWindow; i < endWindow; i++)
-      // {
-      //   struct timeval end_time;
-      //   gettimeofday(&end_time, NULL);
+      int time_index = 0;
+      for (i = beginWindow; i < endWindow; i++) 
+      {
+        int ret = poll(&timer_fds[time_index], 5, 0);
 
-      //   double elapsed = get_elapsed_time(end_time, times[i]);
+        if (ret < 0) 
+        {
+          perror("poll");
+          exit(1);
+        }
 
-      //   if (elapsed > 500)
-      //   {
-      //     // Resend packet
-      //     if ((numbytes = sendto(sockfd, &packets[i], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
-      //     {
-      //       perror("sendto");
-      //       exit(1);
-      //     }
+        else if (ret == 0) 
+        {
+          // No file descriptors are ready
+          // Should check if timers have run out
 
-      //     struct timeval start_time;
-      //     gettimeofday(&start_time, NULL);
+          struct itimerspec current_val;
+          int get_time = timerfd_gettime(timer_fds[time_index], current_val);
 
-      //     times[i] = start_time;
+          if (get_time < 0)
+          {
+            perror("timerfd_gettime");
+            exit(1);
+          }
+          
+          if (current_val.it_value == 0) 
+          {
+            // Retransmit the packet at i
+          }
+        }
 
-      //     printf("Sending packet %d 5120 Retransmission\n", packets[i].seq_num);
-      //   }
-
-      // }
+        time_index++;
+      }
+      
 
       //send all packets in the window
       while (nextPacket <= endWindow && endWindow < totalPackets)
@@ -306,14 +320,8 @@ int main(void)
           perror("sendto");
           exit(1);
         }
-
-        // struct timeval start_time;
-        // gettimeofday(&start_time, NULL);
-
-        // times[nextPacket] = start_time;
-
         // Create timer for the current packet
-/*
+
         int timer_fd = -1;
         int ret;
 
@@ -329,7 +337,8 @@ int main(void)
         timeout.it_value.tv_sec = 0;
         timeout.it_value.tv_nsec = 500000000;
 
-        times[nextPacket] = timer_fd;
+        // Fill times buffer with timer file descriptors
+        timer_fds[nextPacket].fd = timer_fd;
 
         // Set timeout
         ret = timerfd_settime(timer_fd, 0, &timeout, NULL);
@@ -338,12 +347,9 @@ int main(void)
           exit(1);
         }
         
-*/
         printf("Sending packet %d 5120\n", packets[nextPacket].seq_num); //packets[nextPacket].seq_num);
         nextPacket++;
       }
-
-      // Watch sockfd to see when it has input
 
       fd_set rfds;
       struct timeval tv;
@@ -351,19 +357,6 @@ int main(void)
 
       FD_ZERO(&rfds);
       FD_SET(sockfd, &rfds);
-
-      // tv.tv_sec = 0;
-      // tv.tv_usec = 500000;
-      // retval = select(sockfd, &rfds, NULL, NULL, &tv);
-      // if (retval < 0)
-      // {
-      //   perror("select");
-      // }
-      // else if (retval < 1 && beginWindow != endWindow)
-      // {
-      //   // Data is not available yet == NO ACK HAS BEEN SENT
-      //   continue;
-      // }
 
       // check for an ack
       struct packet received_ack;
@@ -376,7 +369,6 @@ int main(void)
       //receive an ACK, check if the window should be moved
       if (received_ack.type == 1) // && received_ack.seq_num == expected_seq_num)
       {
-        //        fprintf(stderr, "%d %d %d\n", received_ack.ack_num, packets[beginWindow].seq_num, packets[endWindow].seq_num);
         //move the window
         if (received_ack.ack_num >= packets[beginWindow].seq_num && received_ack.ack_num <= packets[endWindow].seq_num)
         {
@@ -386,12 +378,20 @@ int main(void)
             endWindow = totalPackets - 1;
           beginWindow = newBegin;
         }
-        //        expected_seq_num =
+      }
+
+      if (received_ack.type == 4)
+      {
+          //successfully closed
+          closed = 1;
+          break;
       }
 
       //client has received all of the data, break to begin TCP closing process
-      if (nextPacket == totalPackets)
+//      fprintf(stderr, "%d %d\n", nextPacket, totalPackets);
+      if (nextPacket == totalPackets && !finSent)
       {
+//        fprintf(stderr, "trying to close");
         struct packet fin_pkt;
         fin_pkt.type = 4;
         fin_pkt.seq_num = server_seq_num;
@@ -404,22 +404,28 @@ int main(void)
         }
         printf("Sending packet %d 5120 FIN\n", server_seq_num);
         server_seq_num++;
-
+        finSent = 1;
         //wait for the ACK
-        struct packet ack_fin_pkt;
-        if ((numbytes = recvfrom(sockfd, &ack_fin_pkt, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
-        {
-          perror("server: recvfrom");
-          exit(1);
-        }
-
-        if (ack_fin_pkt.type == 4 && ack_fin_pkt.ack_num == last_file_seq_num)
-        {
-          fprintf(stderr, "closing connection");
-          //successfully closed
-          closed = 1;
-          break;
-        }
+        // struct packet ack_fin_pkt;
+        // if ((numbytes = recvfrom(sockfd, &ack_fin_pkt, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
+        // {
+        //   perror("server: recvfrom");
+        //   exit(1);
+        // }
+        // fprintf(stderr, "%d %d %d\n", ack_fin_pkt.ack_num, last_file_seq_num, ack_fin_pkt.type);
+        // if (ack_fin_pkt.type == 4 && ack_fin_pkt.ack_num == last_file_seq_num)
+        // {
+        //   fprintf(stderr, "closing connection");
+        //   //successfully closed
+        //   closed = 1;
+        //   break;
+        // }
+        // else
+        // {
+        //   fprintf(stderr, "%d", ack_fin_pkt.type);
+        //   fprintf(stderr, "Error receiving ACK");
+        //   exit(1);
+        // }
       }
     }
     break;
