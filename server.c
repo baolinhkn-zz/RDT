@@ -277,9 +277,6 @@ int main(void)
     //sending packets
     while (1)
     {
-
-      
-
       //send all packets in the window
       while (nextPacket <= endWindow && endWindow < totalPackets)
       {
@@ -348,6 +345,8 @@ int main(void)
           if (current_val.it_value.tv_nsec <= 0) 
           {
             // Retransmit the packet at i
+            //change the type to a retransmission type
+            packets[i].type = 3;
             if ((numbytes = sendto(sockfd, &packets[i], sizeof(struct packet), 0, (struct sockaddr*)&their_addr, addr_len)) == -1) 
             {
               perror("sendto");
@@ -374,6 +373,8 @@ int main(void)
       if (received_ack.type == 1) // && received_ack.seq_num == expected_seq_num)
       {
         //move the window
+        // Stop the timer for this fd
+
         if (received_ack.ack_num >= packets[beginWindow].seq_num && received_ack.ack_num <= packets[endWindow].seq_num)
         {
           int newBegin = ((received_ack.ack_num - 1) / 1000);

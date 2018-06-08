@@ -185,27 +185,38 @@ int main(int argc, char *argv[])
         perror("recvfrom");
         exit(1);
       }
-      if (pkt.type == 2)
-      { //place packet into the buffer
-        int pkt_seq_num = pkt.seq_num;
-        if (pkt_seq_num == expected_seq_num)
+
+      //regular data packet or a retransmitted data packet
+      if (pkt.type == 2 || pkt.type == 3)
+      {
+        //place packet into the buffer
+
+        if (pkt.type == 3 && pkt.seq_num < expected_seq_num) //ACK to retransmitted packet that had been lost
         {
-          expected_seq_num = pkt_seq_num + pkt.data_size;
+          ;
         }
-
-        //add packet into corresponding spot in the window
-        index = ((pkt_seq_num - 1) / 1000) % 5;
-        buffer[index] = pkt;
-        itemsInBuffer++;
-
-        // If packet's fin value is 1 - reached EOF OR we have a full buffer
-        if (pkt.end_of_file || itemsInBuffer == 5)
+        else //pkt.type == 2 or a retransmitted packet that had been lost
         {
-          bufferFull = 1;
-        }
+          int pkt_seq_num = pkt.seq_num;
+          if (pkt_seq_num == expected_seq_num)
+          {
+            expected_seq_num = pkt_seq_num + pkt.data_size;
+          }
 
-        if (lastReceived < index)
-          lastReceived = index;
+          //add packet into corresponding spot in the window
+          index = ((pkt_seq_num - 1) / 1000) % 5;
+          buffer[index] = pkt;
+          itemsInBuffer++;
+
+          // If packet's fin value is 1 - reached EOF OR we have a full buffer
+          if (pkt.end_of_file || itemsInBuffer == 5)
+          {
+            bufferFull = 1;
+          }
+
+          if (lastReceived < index)
+            lastReceived = index;
+        }
 
         //send the ACK - no need to print "sending packet [ack num]"
         struct packet ACK;
@@ -238,7 +249,8 @@ int main(int argc, char *argv[])
           bufferFull = 0;
         }
       }
-      //CHANGE THIS TO MAKE SURE IT IS THE RIGHT ENDING
+
+      //receiving a FIN packet
       if (pkt.type == 4)
       {
         struct packet server_fin_ack;
