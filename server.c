@@ -326,7 +326,7 @@ int main(void)
         }
 
         // Fill times buffer with timer file descriptors
-        int timerIndex = ((nextPacket/DATA)%5) - 1;
+        int timerIndex = ((packets[nextPacket].seq_num/DATA)%5) - 1;
         fprintf(stderr, "timerIndex: %d\n", timerIndex);
         timer_fds[nextPacket].fd = timer_fd;
 
