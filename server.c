@@ -372,6 +372,7 @@ int main(void)
 
         if (timer_fds[time_index].revents & POLLIN)
         {
+          fprintf(stderr, "Hello");                    
           // One of the timers has timed out
           packets[i].type = 3;
           if ((numbytes = sendto(sockfd, &packets[i], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
