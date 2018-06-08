@@ -280,7 +280,7 @@ int main(void)
       int time_index = 0;
       for (i = beginWindow; i < endWindow; i++) 
       {
-        int ret = poll(&timer_fds[time_index], 5, 0);
+        int ret = poll(&timer_fds[time_index].fd, 5, 0);
 
         if (ret < 0) 
         {
@@ -294,7 +294,7 @@ int main(void)
           // Should check if timers have run out
 
           struct itimerspec current_val;
-          int get_time = timerfd_gettime(timer_fds[time_index], current_val);
+          int get_time = timerfd_gettime(timer_fds[time_index].fd, current_val);
 
           if (get_time < 0)
           {
@@ -302,9 +302,16 @@ int main(void)
             exit(1);
           }
           
-          if (current_val.it_value == 0) 
+          if (current_val.it_value.nsec <= 0) 
           {
             // Retransmit the packet at i
+            if ((numbytes = sendto(sockfd, &packets[i], sizeof(struct packet), 0, (struct sockaddr*)&their_addr, addr_len)) == -1) 
+            {
+              perror("sendto");
+              exit(1);
+            }
+
+            printf("Sending packet %d 5120 Retransmission\n", packets[i].seq_num);
           }
         }
 
@@ -342,7 +349,8 @@ int main(void)
 
         // Set timeout
         ret = timerfd_settime(timer_fd, 0, &timeout, NULL);
-        if (ret) {
+        if (ret) 
+        {
           perror("timerfd_settime");
           exit(1);
         }
@@ -350,13 +358,6 @@ int main(void)
         printf("Sending packet %d 5120\n", packets[nextPacket].seq_num); //packets[nextPacket].seq_num);
         nextPacket++;
       }
-
-      fd_set rfds;
-      struct timeval tv;
-      int retval;
-
-      FD_ZERO(&rfds);
-      FD_SET(sockfd, &rfds);
 
       // check for an ack
       struct packet received_ack;
