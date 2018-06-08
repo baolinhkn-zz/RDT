@@ -172,6 +172,8 @@ int main(void)
       perror("recvfrom");
       exit(1);
     }
+
+    fprintf(stderr, "receiving file %s", filename_buff);
     /*
     struct packet client_fin;
     if ((numbytes = recvfrom(sockfd, &client_fin, MAXBUFLEN, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
