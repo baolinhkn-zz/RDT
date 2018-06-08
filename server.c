@@ -326,6 +326,8 @@ int main(void)
         }
 
         // Fill times buffer with timer file descriptors
+        int timerIndex = ((nextPacket/DATA)%5) - 1;
+        fprintf(stderr, "timerIndex: %d\n", timerIndex);
         timer_fds[nextPacket].fd = timer_fd;
 
         printf("Sending packet %d 5120\n", packets[nextPacket].seq_num); //packets[nextPacket].seq_num);
@@ -343,7 +345,6 @@ int main(void)
 
       for (i = beginWindow; i <= endWindow; i++)
       {
-        fprintf(stderr, "%d %d %d\n", i, beginWindow, endWindow, i);
         //int ret = poll(&timer_fds[time_index].fd, 5, 0);
 
         // if (ret < 0)
@@ -399,8 +400,6 @@ int main(void)
         time_index++;
       }
 
-      fprintf(stderr, "exited loop\n");
-
       // Poll for input from the socket - receiving ACKS
       if (timer_fds[5].revents & POLLIN)
       {
@@ -418,10 +417,11 @@ int main(void)
           //turn off the timer for this packet
 
           int received_ack_num = received_ack.ack_num;
-          int toClose = (received_ack_num/DATA)%5;
+          int toClose = (received_ack_num/DATA)%5-1;
           fprintf(stderr, "to close: %d\n", toClose);
           fprintf(stderr, "ack num received: %d\n", received_ack_num);
-          exit(1);
+          close(timer_fds[toClose].fd);
+//          exit(1);
           //move the window
           if (received_ack.ack_num >= packets[beginWindow].seq_num && received_ack.ack_num <= packets[endWindow].seq_num)
           {
