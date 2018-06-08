@@ -11,7 +11,7 @@
 #include <netdb.h>
 
 #define SERVERPORT "4950" // the port users will be connecting to
-#define DATA 1004
+#define DATA 996
 #define MAXBUFLEN 2048
 #define CWND 5120
 
@@ -25,6 +25,8 @@ struct packet
   //4 = fin
   int seq_num;
   int ack_num;
+
+  double time;
 
   int data_size;
   //end of file, end_of_file = 1
@@ -62,8 +64,7 @@ int main(int argc, char *argv[])
   // loop through all the results and make a socket
   for (p = servinfo; p != NULL; p = p->ai_next)
   {
-    if ((sockfd = socket(p->ai_family, p->ai_socktype,
-                         p->ai_protocol)) == -1)
+    if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
     {
       perror("client: socket");
       continue;
@@ -189,6 +190,7 @@ int main(int argc, char *argv[])
         int pkt_seq_num = pkt.seq_num;
         if (pkt_seq_num == expected_seq_num)
         {
+          fprintf(stderr, "%d", pkt.data_size);
           expected_seq_num = pkt_seq_num + pkt.data_size;
         }
 
@@ -206,8 +208,6 @@ int main(int argc, char *argv[])
         if (lastReceived < index)
           lastReceived = index;
 
-        printf("Receiving packet %d\n", expected_seq_num);
-
         //send the ACK - no need to print "sending packet [ack num]"
         struct packet ACK;
         ACK.type = 1;
@@ -218,6 +218,8 @@ int main(int argc, char *argv[])
           perror("server: sendto");
           exit(1);
         }
+
+        printf("Receiving packet %d\n", expected_seq_num);
 
         // Write file data to received.data in the directory
         int i;
@@ -240,20 +242,6 @@ int main(int argc, char *argv[])
       //CHANGE THIS TO MAKE SURE IT IS THE RIGHT ENDING
       if (pkt.type == 4)
       {
-        /*
-        //receiving the server's fin
-        struct packet server_fin;
-        int bytes;
-        if ((bytes = recvfrom(sockfd, &server_fin, MAXBUFLEN - 1, 0, (struct sockaddr *)p->ai_addr, &(p->ai_addrlen))) == -1)
-        {
-          perror("client: recvfrom");
-          exit(1);
-        }
-        */
-
-        // //send the ACK for the FIN
-        // if (server_fin.type == 4)
-        // {
         struct packet server_fin_ack;
         server_fin_ack.type = 4;
         server_fin_ack.seq_num = pkt.seq_num + 1;
@@ -266,7 +254,6 @@ int main(int argc, char *argv[])
         fprintf(stderr, "ADD TIMEOUT");
         closed = 1;
         break;
-        // }
       }
     }
   }
