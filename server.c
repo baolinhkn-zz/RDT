@@ -312,7 +312,7 @@ int main(void)
           exit(1);
         }
 
-        timeout.it_inverval.tv_sec = 0;
+        timeout.it_interval.tv_sec = 0;
         timeout.it_interval.tv_nsec = 0;
         timeout.it_value.tv_sec = 0;
         timeout.it_value.tv_nsec = 500000000;
