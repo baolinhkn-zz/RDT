@@ -382,12 +382,12 @@ int main(void)
         {
           //fprintf(stderr, "%d %d\n", time_index, i);
           // One of the timers has timed out
-          packets[i].type = 3;
+          /*packets[i].type = 3;
           if ((numbytes = sendto(sockfd, &packets[i], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
           {
             perror("sendto");
             exit(1);
-          }
+          }*/
 
           //printf("Sending packet %d 5120 Retransmission\n", packets[i].seq_num);
         }
@@ -398,6 +398,7 @@ int main(void)
       // Poll for input from the socket - receiving ACKS
       if (timer_fds[5].revents & POLLIN)
       {
+        fprintf(stderr, "receiving from the socket\n");
         struct packet received_ack;
         if ((numbytes = recvfrom(sockfd, &received_ack, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
         {
