@@ -404,9 +404,14 @@ int main(void)
         //receive an ACK, check if the window should be moved
         if (received_ack.type == 1) // && received_ack.seq_num == expected_seq_num)
         {
-          //move the window
-          // Stop the timer for this fd
+          //turn off the timer for this packet
 
+          int received_ack_num = received_ack.ack_num;
+          int toClose = (received_ack_num/DATA)%5;
+          fprintf(stderr, "to close: %d\n", toClose);
+          fprintf(stderr, "ack num received: %d\n", received_ack_num);
+
+          //move the window
           if (received_ack.ack_num >= packets[beginWindow].seq_num && received_ack.ack_num <= packets[endWindow].seq_num)
           {
             int newBegin = ((received_ack.ack_num - 1) / 1000);
