@@ -131,34 +131,34 @@ int main(int argc, char *argv[])
       perror("server: sendto");
       exit(1);
     }
-/*
-    //send the FIN
-    struct packet fin;
-    fin.type = 4;
-    fin.seq_num = client_seq_num;
+    /*
+        //send the FIN
+        struct packet fin;
+        fin.type = 4;
+        fin.seq_num = client_seq_num;
 
-    if ((numbytes = sendto(sockfd, &fin, sizeof(fin), 0, p->ai_addr, p->ai_addrlen)) == -1)
-    {
-      perror("server: sendto");
-      exit(1);
-    }
+        if ((numbytes = sendto(sockfd, &fin, sizeof(fin), 0, p->ai_addr, p->ai_addrlen)) == -1)
+        {
+          perror("server: sendto");
+          exit(1);
+        }
 
-    printf("Sending packet %d 5120 FIN\n", client_seq_num);
-    client_seq_num++;
+        printf("Sending packet %d 5120 FIN\n", client_seq_num);
+        client_seq_num++;
 
-    //receive ACK for the FIN
-    struct packet fin_ack;
-    if ((numbytes = recvfrom(sockfd, &fin_ack, MAXBUFLEN - 1, 0, (struct sockaddr *)p->ai_addr, &(p->ai_addrlen))) == -1)
-    {
-      perror("recvfrom");
-      exit(1);
-    }
-    if (fin_ack.type != 4)
-    {
-      fprintf(stderr, "Error receiving ACK for FIN");
-      exit(1);
-    }
-*/
+        //receive ACK for the FIN
+        struct packet fin_ack;
+        if ((numbytes = recvfrom(sockfd, &fin_ack, MAXBUFLEN - 1, 0, (struct sockaddr *)p->ai_addr, &(p->ai_addrlen))) == -1)
+        {
+          perror("recvfrom");
+          exit(1);
+        }
+        if (fin_ack.type != 4)
+        {
+          fprintf(stderr, "Error receiving ACK for FIN");
+          exit(1);
+        }
+    */
     //window to receive packets
     struct packet buffer[5];
     int itemsInBuffer = 0;
@@ -267,8 +267,8 @@ int main(int argc, char *argv[])
           exit(1);
         }
         printf("Receiving packet %d\n", pkt.seq_num + 1);
-        fprintf(stderr, "hi");
         sleep(100);
+        fprintf(stderr, "done sleeping");
         closed = 1;
         break;
       }
