@@ -417,8 +417,8 @@ int main(void)
 
           int received_ack_num = received_ack.ack_num;
           int toClose = (received_ack_num/DATA)%5;
-          fprintf(stderr, "to close: %d\n", toClose);
-          fprintf(stderr, "ack num received: %d\n", received_ack_num);
+          //fprintf(stderr, "to close: %d\n", toClose);
+          //fprintf(stderr, "ack num received: %d\n", received_ack_num);
           close(timer_fds[toClose].fd);
 //          exit(1);
           //move the window
