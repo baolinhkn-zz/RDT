@@ -341,7 +341,7 @@ int main(void)
 
       for (i = beginWindow; i < endWindow; i++)
       {
-        fprintf(stderr, "%d %d %d", i, beginWindow, endWindow, i);
+        fprintf(stderr, "%d %d %d\n", i, beginWindow, endWindow, i);
         //int ret = poll(&timer_fds[time_index].fd, 5, 0);
 
         // if (ret < 0)
