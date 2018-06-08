@@ -384,7 +384,7 @@ int main(void)
 
         if (timer_fds[time_index].revents & POLLIN)
         {
-          fprintf(stderr, "time_index\n");
+          fprintf(stderr, "time-index: %d\n", time_index);
           //fprintf(stderr, "%d %d\n", time_index, i);
           // One of the timers has timed out
           /*packets[i].type = 3;
