@@ -267,15 +267,12 @@ int main(void)
     int endWindow = (totalPackets < 5) ? totalPackets - 1 : 4;
     int nextPacket = 0;
 
-    struct pollfd timer_fds[5];
+    struct pollfd timer_fds[6];
 
-    for (i = 1; i < 5; i++)
+    for (i = 1; i < 6; i++)
     {
       timer_fds[i].events = POLLIN;
     }
-
-    struct pollfd socket_fd[1];
-    socket_fd[0].events = POLLIN;
 
     //sending packets
     while (1)
@@ -291,6 +288,7 @@ int main(void)
         
       */
       //send all packets in the window
+      
       while (nextPacket <= endWindow && endWindow < totalPackets)
       {
         if ((numbytes = sendto(sockfd, &packets[nextPacket], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
@@ -333,15 +331,23 @@ int main(void)
       }
 
       int time_index = 0;
+
+      int ret = poll(timer_fds, 6, 0);
+      if (ret < 0) 
+      {
+        perror("poll");
+        exit(1);
+      }
+
       for (i = beginWindow; i < endWindow; i++)
       {
-        int ret = poll(&timer_fds[time_index].fd, 5, 0);
+        //int ret = poll(&timer_fds[time_index].fd, 5, 0);
 
-        if (ret < 0)
-        {
-          perror("poll");
-          exit(1);
-        }
+        // if (ret < 0)
+        // {
+        //   perror("poll");
+        //   exit(1);
+        // }
 
         // else if (ret == 0)
         // {
@@ -375,7 +381,6 @@ int main(void)
         if (timer_fds[time_index].revents & POLLIN)
         {
           fprintf(stderr, "%d %d\n", time_index, i);
-          fprintf(stderr, "Hello");                    
           // One of the timers has timed out
           packets[i].type = 3;
           if ((numbytes = sendto(sockfd, &packets[i], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
@@ -391,8 +396,7 @@ int main(void)
       }
 
       // Poll for input from the socket - receiving ACKS
-
-      if (socket_fd[0].revents & POLLIN)
+      if (timer_fds[5].revents & POLLIN)
       {
         struct packet received_ack;
         if ((numbytes = recvfrom(sockfd, &received_ack, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
