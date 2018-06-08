@@ -172,7 +172,7 @@ int main(void)
       perror("recvfrom");
       exit(1);
     }
-
+    /*
     struct packet client_fin;
     if ((numbytes = recvfrom(sockfd, &client_fin, MAXBUFLEN, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
     {
@@ -195,7 +195,7 @@ int main(void)
 
       printf("Receiving packet %d\n", client_fin.seq_num + 1);
     }
-
+*/
     // Find the file in the current working directory
     DIR *dp;
     struct dirent *ep;
@@ -280,6 +280,16 @@ int main(void)
     //sending packets
     while (1)
     {
+
+      /*
+
+      call poll
+      if we get something from the sockfd
+        do our normal stuff
+      otherwise check for the other timerfds
+        retransmit if one of them 
+        
+      */
       //send all packets in the window
       while (nextPacket <= endWindow && endWindow < totalPackets)
       {
@@ -331,33 +341,46 @@ int main(void)
           exit(1);
         }
 
-        else if (ret == 0)
+        // else if (ret == 0)
+        // {
+        //   // No file descriptors are ready
+        //   // Should check if timers have run out
+
+        //   struct itimerspec current_val;
+        //   int get_time = timerfd_gettime(timer_fds[time_index].fd, &current_val);
+
+        //   if (get_time < 0)
+        //   {
+        //     perror("timerfd_gettime");
+        //     exit(1);
+        //   }
+
+        //   if (current_val.it_value.tv_nsec <= 0)
+        //   {
+        //     // Retransmit the packet at i
+        //     //change the type to a retransmission type
+        //     packets[i].type = 3;
+        //     if ((numbytes = sendto(sockfd, &packets[i], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
+        //     {
+        //       perror("sendto");
+        //       exit(1);
+        //     }
+
+        //     printf("Sending packet %d 5120 Retransmission\n", packets[i].seq_num);
+        //   }
+        // }
+
+        if (&timer_fds[time.index] & POLLIN)
         {
-          // No file descriptors are ready
-          // Should check if timers have run out
-
-          struct itimerspec current_val;
-          int get_time = timerfd_gettime(timer_fds[time_index].fd, &current_val);
-
-          if (get_time < 0)
+          // One of the timers has timed out
+          packets[i].type = 3;
+          if ((numbytes = sendto(sockfd, &packets[i], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
           {
-            perror("timerfd_gettime");
+            perror("sendto");
             exit(1);
           }
 
-          if (current_val.it_value.tv_nsec <= 0)
-          {
-            // Retransmit the packet at i
-            //change the type to a retransmission type
-            packets[i].type = 3;
-            if ((numbytes = sendto(sockfd, &packets[i], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
-            {
-              perror("sendto");
-              exit(1);
-            }
-
-            printf("Sending packet %d 5120 Retransmission\n", packets[i].seq_num);
-          }
+          printf("Sending packet %d 5120 Retransmission\n", packets[i].seq_num);
         }
 
         time_index++;

@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
       perror("server: sendto");
       exit(1);
     }
-
+/*
     //send the FIN
     struct packet fin;
     fin.type = 4;
@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
       fprintf(stderr, "Error receiving ACK for FIN");
       exit(1);
     }
-
+*/
     //window to receive packets
     struct packet buffer[5];
     int itemsInBuffer = 0;
