@@ -341,7 +341,7 @@ int main(void)
         exit(1);
       }
 
-      for (i = beginWindow; i < endWindow; i++)
+      for (i = beginWindow; i <= endWindow; i++)
       {
         fprintf(stderr, "%d %d %d\n", i, beginWindow, endWindow, i);
         //int ret = poll(&timer_fds[time_index].fd, 5, 0);
@@ -397,6 +397,8 @@ int main(void)
 
         time_index++;
       }
+
+      fprintf(stderr, "exited loop");
 
       // Poll for input from the socket - receiving ACKS
       if (timer_fds[5].revents & POLLIN)
