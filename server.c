@@ -370,7 +370,7 @@ int main(void)
         //   }
         // }
 
-        if (&timer_fds[time_index] & POLLIN)
+        if (timer_fds[time_index].revents & POLLIN)
         {
           // One of the timers has timed out
           packets[i].type = 3;
