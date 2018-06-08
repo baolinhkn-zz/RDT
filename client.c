@@ -131,34 +131,7 @@ int main(int argc, char *argv[])
       perror("server: sendto");
       exit(1);
     }
-    /*
-        //send the FIN
-        struct packet fin;
-        fin.type = 4;
-        fin.seq_num = client_seq_num;
 
-        if ((numbytes = sendto(sockfd, &fin, sizeof(fin), 0, p->ai_addr, p->ai_addrlen)) == -1)
-        {
-          perror("server: sendto");
-          exit(1);
-        }
-
-        printf("Sending packet %d 5120 FIN\n", client_seq_num);
-        client_seq_num++;
-
-        //receive ACK for the FIN
-        struct packet fin_ack;
-        if ((numbytes = recvfrom(sockfd, &fin_ack, MAXBUFLEN - 1, 0, (struct sockaddr *)p->ai_addr, &(p->ai_addrlen))) == -1)
-        {
-          perror("recvfrom");
-          exit(1);
-        }
-        if (fin_ack.type != 4)
-        {
-          fprintf(stderr, "Error receiving ACK for FIN");
-          exit(1);
-        }
-    */
     //window to receive packets
     struct packet buffer[5];
     int itemsInBuffer = 0;
@@ -185,12 +158,12 @@ int main(int argc, char *argv[])
         perror("recvfrom");
         exit(1);
       }
-
       //regular data packet or a retransmitted data packet
       if (pkt.type == 2 || pkt.type == 3)
       {
         //place packet into the buffer
 
+        fprintf(stderr, "packet received: %d\n", pkt.seq_num);
         if (pkt.type == 3 && pkt.seq_num < expected_seq_num) //ACK to retransmitted packet that had been lost
         {
           ;

@@ -174,30 +174,7 @@ int main(void)
     }
 
     fprintf(stderr, "receiving file %s", filename_buff);
-    /*
-    struct packet client_fin;
-    if ((numbytes = recvfrom(sockfd, &client_fin, MAXBUFLEN, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
-    {
-      perror("recvfrom");
-      exit(1);
-    }
 
-    //received the fin from the client
-    if (client_fin.type == 4)
-    {
-      //send the ACK
-      struct packet client_fin_ack;
-      client_fin_ack.type = 4;
-      client_fin_ack.ack_num = client_fin.seq_num + 1;
-      if ((numbytes = sendto(sockfd, &client_fin_ack, sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
-      {
-        perror("server: send to");
-        exit(1);
-      }
-
-      printf("Receiving packet %d\n", client_fin.seq_num + 1);
-    }
-*/
     // Find the file in the current working directory
     DIR *dp;
     struct dirent *ep;
@@ -280,19 +257,7 @@ int main(void)
 
     //sending packets
     while (1)
-    {
-
-      /*
-
-      call poll
-      if we get something from the sockfd
-        do our normal stuff
-      otherwise check for the other timerfds
-        retransmit if one of them 
-        
-      */
-      //send all packets in the window
-      
+    { 
       while (nextPacket <= endWindow && endWindow < totalPackets)
       {
         if ((numbytes = sendto(sockfd, &packets[nextPacket], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
@@ -347,48 +312,8 @@ int main(void)
 
       for (i = beginWindow; i <= endWindow; i++)
       {
-        //int ret = poll(&timer_fds[time_index].fd, 5, 0);
-
-        // if (ret < 0)
-        // {
-        //   perror("poll");
-        //   exit(1);
-        // }
-
-        // else if (ret == 0)
-        // {
-        //   // No file descriptors are ready
-        //   // Should check if timers have run out
-
-        //   struct itimerspec current_val;
-        //   int get_time = timerfd_gettime(timer_fds[time_index].fd, &current_val);
-
-        //   if (get_time < 0)
-        //   {
-        //     perror("timerfd_gettime");
-        //     exit(1);
-        //   }
-
-        //   if (current_val.it_value.tv_nsec <= 0)
-        //   {
-        //     // Retransmit the packet at i
-        //     //change the type to a retransmission type
-        //     packets[i].type = 3;
-        //     if ((numbytes = sendto(sockfd, &packets[i], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
-        //     {
-        //       perror("sendto");
-        //       exit(1);
-        //     }
-
-        //     printf("Sending packet %d 5120 Retransmission\n", packets[i].seq_num);
-        //   }
-        // }
-
         if (timer_fds[time_index].revents & POLLIN)
         {
-          //fprintf(stderr, "time-index: %d\n", time_index);
-          //fprintf(stderr, "%d %d\n", time_index, i);
-          // One of the timers has timed out
           packets[i].type = 3;
           if ((numbytes = sendto(sockfd, &packets[i], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
           {
@@ -416,14 +341,11 @@ int main(void)
         if (received_ack.type == 1) // && received_ack.seq_num == expected_seq_num)
         {
           //turn off the timer for this packet
-
           int received_ack_num = received_ack.ack_num;
           int toClose = (received_ack_num/DATA)%5;
-          //fprintf(stderr, "to close: %d\n", toClose);
-          //fprintf(stderr, "ack num received: %d\n", received_ack_num);
+
           close(timer_fds[toClose].fd);
-//          exit(1);
-          //move the window
+
           if (received_ack.ack_num >= packets[beginWindow].seq_num && received_ack.ack_num <= packets[endWindow].seq_num)
           {
             int newBegin = ((received_ack.ack_num - 1) / 1000);
