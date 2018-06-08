@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
     syn_poll[1].events = POLLIN;
     syn_poll[1].fd = syn_timer_fd;
 
-    //poll for the SYN
+    //poll for the SYN ACK
     while (1)
     {
       int ret = poll(syn_poll, 2, 0);
@@ -146,6 +146,38 @@ int main(int argc, char *argv[])
       //received the ACK for the SYN
       if (syn_poll[0].revents & POLLIN)
       {
+        fprintf(stderr, "received ACK for the SYN\n");
+        if ((numbytes = recvfrom(sockfd, &rcv_packet, MAXBUFLEN - 1, 0, (struct sockaddr *)p->ai_addr, &(p->ai_addrlen))) == -1)
+        {
+          perror("recvfrom");
+          exit(1);
+        }
+
+        //checking for the SYNACK packet
+        if (rcv_packet.type == 1 && rcv_packet.seq_num == expected_seq_num)
+        {
+          expected_seq_num++;
+          printf("Receiving packet %d\n", expected_seq_num);
+          //sending final ACK for the three-way handshake
+          struct packet ack_synack_packet;
+          ack_synack_packet.type = 1; //SYN
+          ack_synack_packet.seq_num = client_seq_num;
+          ack_synack_packet.end_of_file = 1;
+          if ((numbytes = sendto(sockfd, &ack_synack_packet, sizeof(ack_synack_packet), 0, p->ai_addr, p->ai_addrlen)) == -1)
+          {
+            perror("server: sendto");
+            exit(1);
+          }
+          printf("Sending packet %d 5120 SYN\n", ack_synack_packet.seq_num);
+          client_seq_num++;
+        }
+        // Send filename over
+        int fileNameBytes = 0;
+        if ((fileNameBytes = sendto(sockfd, argv[2], strlen(argv[2]) + 1, 0, p->ai_addr, p->ai_addrlen)) == -1)
+        {
+          perror("server: sendto");
+          exit(1);
+        }
         break;
       }
 
@@ -153,6 +185,7 @@ int main(int argc, char *argv[])
       if (syn_poll[1].revents & POLLIN)
       {
         //need to resend the SYN
+        fprintf(stderr, "timed out\n");
         if ((numbytes = sendto(sockfd, &syn_packet, sizeof(syn_packet), 0, p->ai_addr, p->ai_addrlen)) == -1)
         {
           perror("client: sendto");
@@ -160,38 +193,6 @@ int main(int argc, char *argv[])
         }
         printf("Sending packet 0 5120 Retransmission SYN\n");
       }
-    }
-
-    if ((numbytes = recvfrom(sockfd, &rcv_packet, MAXBUFLEN - 1, 0, (struct sockaddr *)p->ai_addr, &(p->ai_addrlen))) == -1)
-    {
-      perror("recvfrom");
-      exit(1);
-    }
-
-    //checking for the SYNACK packet
-    if (rcv_packet.type == 1 && rcv_packet.seq_num == expected_seq_num)
-    {
-      expected_seq_num++;
-      printf("Receiving packet %d\n", expected_seq_num);
-      //sending final ACK for the three-way handshake
-      struct packet ack_synack_packet;
-      ack_synack_packet.type = 1; //SYN
-      ack_synack_packet.seq_num = client_seq_num;
-      ack_synack_packet.end_of_file = 1;
-      if ((numbytes = sendto(sockfd, &ack_synack_packet, sizeof(ack_synack_packet), 0, p->ai_addr, p->ai_addrlen)) == -1)
-      {
-        perror("server: sendto");
-        exit(1);
-      }
-      printf("Sending packet %d 5120 SYN\n", ack_synack_packet.seq_num);
-      client_seq_num++;
-    }
-    // Send filename over
-    int fileNameBytes = 0;
-    if ((fileNameBytes = sendto(sockfd, argv[2], strlen(argv[2]) + 1, 0, p->ai_addr, p->ai_addrlen)) == -1)
-    {
-      perror("server: sendto");
-      exit(1);
     }
 
     //window to receive packets
