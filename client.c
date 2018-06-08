@@ -9,6 +9,9 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <sys/poll.h>
+#include <sys/time.h>
+#include <sys/timerfd.h>
 
 #define SERVERPORT "4950" // the port users will be connecting to
 #define DATA 996
@@ -99,6 +102,66 @@ int main(int argc, char *argv[])
     printf("Sending packet 0 5120 SYN\n");
     client_seq_num++;
 
+    struct pollfd syn_poll[2];
+
+    struct itimerspec syn_timeout;
+    int syn_timer_fd = -1;
+
+    syn_timer_fd = timerfd_create(CLOCK_MONOTONIC, 0);
+    if (timer_fd <= 0)
+    {
+      perror("timerfd_create");
+      exit(1);
+    }
+
+    syn_timeout.it_interval.tv_sec = 0;
+    syn_timeout.it_interval.tv_nsec = 0;
+    syn_timeout.it_interval.tv_sec = 0;
+    syn_timeout.it_value.tv_nsec = 500000000;
+
+    //set the timeout
+    ret = timerfd_settime(syn_timer_fd, 0, &syn_timeout, NULL);
+    if (ret)
+    {
+      perror("timerfd_settime");
+      exit(1);
+    }
+
+    syn_poll[0].events = POLLIN;
+    syn_poll[0].fd = sockfd;
+
+    syn_poll[1].events = POLLIN;
+    syn_poll[1].fd = syn_timer_fd;
+
+    //poll for the SYN
+    while (1)
+    {
+      int ret = poll(syn_poll, 2, 0);
+      if (ret < 0)
+      {
+        perror("poll");
+        exit(1);
+      }
+
+      //received the ACK for the SYN
+      if (syn_poll[0].revents & POLLIN)
+      {
+        break;
+      }
+
+      //SYN was lost
+      if (syn_poll[1].revents & POLLIN)
+      {
+        //need to resend the SYN
+        if ((numbytes = sendto(sockfd, &syn_packet, sizeof(syn_packet), 0, p->ai_addr, p->ai_addrlen)) == -1)
+        {
+          perror("client: sendto");
+          exit(1);
+        }
+        printf("Sending packet 0 5120 Retransmission SYN\n");
+      }
+    }
+
     if ((numbytes = recvfrom(sockfd, &rcv_packet, MAXBUFLEN - 1, 0, (struct sockaddr *)p->ai_addr, &(p->ai_addrlen))) == -1)
     {
       perror("recvfrom");
@@ -123,7 +186,6 @@ int main(int argc, char *argv[])
       printf("Sending packet %d 5120 SYN\n", ack_synack_packet.seq_num);
       client_seq_num++;
     }
-
     // Send filename over
     int fileNameBytes = 0;
     if ((fileNameBytes = sendto(sockfd, argv[2], strlen(argv[2]) + 1, 0, p->ai_addr, p->ai_addrlen)) == -1)

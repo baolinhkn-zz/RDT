@@ -119,6 +119,7 @@ int main(void)
 
   int closed = 0;
   int finSent = 0;
+  int synReceived = 0;
   while (!closed)
   {
     struct packet syn_packet;
@@ -130,8 +131,9 @@ int main(void)
     }
 
     //check for SYN packet
-    if (syn_packet.type == 0 && syn_packet.seq_num == 0)
+    if (!synReceived && syn_packet.type == 0 && syn_packet.seq_num == 0)
     {
+      synReceived = 1;
       //successfully received syn packet
       syn_packet.ack_num = syn_packet.seq_num + 1;
       printf("Receiving packet %d\n", syn_packet.ack_num);
@@ -245,10 +247,11 @@ int main(void)
     int beginWindow = 0;
     int endWindow = (totalPackets < 5) ? totalPackets - 1 : 4;
     int nextPacket = 0;
+    int finSent = 0;
 
-    struct pollfd timer_fds[6];
+    struct pollfd timer_fds[7];
 
-    for (i = 1; i < 6; i++)
+    for (i = 0; i < 7; i++)
     {
       timer_fds[i].events = POLLIN;
     }
@@ -257,7 +260,7 @@ int main(void)
 
     //sending packets
     while (1)
-    { 
+    {
       while (nextPacket <= endWindow && endWindow < totalPackets)
       {
         if ((numbytes = sendto(sockfd, &packets[nextPacket], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
@@ -293,7 +296,7 @@ int main(void)
         }
 
         // Fill times buffer with timer file descriptors
-        int timerIndex = ((packets[nextPacket].seq_num/DATA)%5);
+        int timerIndex = ((packets[nextPacket].seq_num / DATA) % 5);
         //fprintf(stderr, "timerIndex: %d\n", timerIndex);
         timer_fds[timerIndex].fd = timer_fd;
 
@@ -304,7 +307,7 @@ int main(void)
       int time_index = 0;
 
       int ret = poll(timer_fds, 6, 0);
-      if (ret < 0) 
+      if (ret < 0)
       {
         perror("poll");
         exit(1);
@@ -312,7 +315,7 @@ int main(void)
 
       for (i = beginWindow; i <= endWindow; i++)
       {
-        if (timer_fds[time_index].revents & POLLIN)
+        if (timer_fds[time_index].revents & POLLIN) //A TIMEOUT OCCURRED
         {
           packets[i].type = 3;
           if ((numbytes = sendto(sockfd, &packets[i], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
@@ -327,7 +330,7 @@ int main(void)
         time_index++;
       }
 
-      // Poll for input from the socket - receiving ACKS
+      // Poll for input from the socket - receiving ACKS NO TIMEOUT OCCURRED
       if (timer_fds[5].revents & POLLIN)
       {
         struct packet received_ack;
@@ -342,7 +345,7 @@ int main(void)
         {
           //turn off the timer for this packet
           int received_ack_num = received_ack.ack_num;
-          int toClose = (received_ack_num/DATA)%5;
+          int toClose = (received_ack_num / DATA) % 5;
 
           close(timer_fds[toClose].fd);
 
@@ -354,19 +357,19 @@ int main(void)
               endWindow = totalPackets - 1;
             beginWindow = newBegin;
           }
-        }
 
-        if (received_ack.type == 4)
-        {
-          //successfully closed
-          closed = 1;
-          break;
+          if (received_ack.type == 4)
+          {
+            //successfully closed
+            closed = 1;
+            break;
+          }
         }
       }
 
-      //client has received all of the data, break to begin TCP closing process
-      if (nextPacket == totalPackets && !finSent)
+      if (finSent && timer_fds[6].revents & POLLIN)
       {
+        //resend the FIN
         struct packet fin_pkt;
         fin_pkt.type = 4;
         fin_pkt.seq_num = server_seq_num;
@@ -377,14 +380,60 @@ int main(void)
           perror("sender: sendto");
           exit(1);
         }
+
         printf("Sending packet %d 5120 FIN\n", server_seq_num);
-        server_seq_num++;
+      }
+
+      //client has received all of the data, break to begin TCP closing process
+      if (nextPacket == totalPackets && !finSent)
+      {
+        struct packet fin_pkt;
+        fin_pkt.type = 4;
+        fin_pkt.seq_num = server_seq_num;
+        fin_pkt.end_of_file = 0;
+        
+        if ((numbytes = sendto(sockfd, &fin_pkt, sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
+        {
+          perror("sender: sendto");
+          exit(1);
+        }
+
+        printf("Sending packet %d 5120 FIN\n", server_seq_num);
+
         finSent = 1;
+        int fin_timer_fd = -1;
+        int returnval;
+
+        struct itimerspec fin_timeout;
+
+        fin_timer_fd = timerfd_create(CLOCK_MONOTONIC, 0);
+        if (fin_timer_fd <= 0)
+        {
+          perror("timerfd_create");
+          exit(1);
+        }
+
+        fin_timeout.it_interval.tv_sec = 0;
+        fin_timeout.it_interval.tv_nsec = 0;
+        fin_timeout.it_value.tv_sec = 0;
+        fin_timeout.it_value.tv_nsec = 500000000;
+
+        // Set timeout
+        ret = timerfd_settime(fin_timer_fd, 0, &fin_timeout, NULL);
+        if (ret)
+        {
+          perror("timerfd_settime");
+          exit(1);
+        }
+
+        timer_fds[6].fd = fin_timer_fd;
+        timer_fds[6].events = POLLIN;
       }
     }
-    break;
   }
+  break;
+}
 
-  close(sockfd);
-  return 0;
+close(sockfd);
+return 0;
 }
