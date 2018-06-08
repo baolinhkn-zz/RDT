@@ -294,7 +294,7 @@ int main(void)
           // Should check if timers have run out
 
           struct itimerspec current_val;
-          int get_time = timerfd_gettime(timer_fds[time_index].fd, current_val);
+          int get_time = timerfd_gettime(timer_fds[time_index].fd, &current_val);
 
           if (get_time < 0)
           {
@@ -302,7 +302,7 @@ int main(void)
             exit(1);
           }
           
-          if (current_val.it_value.nsec <= 0) 
+          if (current_val.it_value.tv_nsec <= 0) 
           {
             // Retransmit the packet at i
             if ((numbytes = sendto(sockfd, &packets[i], sizeof(struct packet), 0, (struct sockaddr*)&their_addr, addr_len)) == -1) 
