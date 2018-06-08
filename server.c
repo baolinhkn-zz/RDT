@@ -403,7 +403,6 @@ int main(void)
       // Poll for input from the socket - receiving ACKS
       if (timer_fds[5].revents & POLLIN)
       {
-        fprintf(stderr, "receiving from the socket\n");
         struct packet received_ack;
         if ((numbytes = recvfrom(sockfd, &received_ack, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
         {
@@ -417,7 +416,7 @@ int main(void)
           //turn off the timer for this packet
 
           int received_ack_num = received_ack.ack_num;
-          int toClose = (received_ack_num/DATA)%5-1;
+          int toClose = (received_ack_num/DATA)%5;
           fprintf(stderr, "to close: %d\n", toClose);
           fprintf(stderr, "ack num received: %d\n", received_ack_num);
           close(timer_fds[toClose].fd);
