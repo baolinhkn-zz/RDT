@@ -80,7 +80,9 @@ int main(int argc, char *argv[])
 
   int client_seq_num = 0;
   int expected_seq_num = 0;
-  while (1)
+
+  int closed = 0;
+  while (!closed)
   {
     struct packet rcv_packet;
     //send initial three way handshake request
@@ -143,6 +145,19 @@ int main(int argc, char *argv[])
     printf("Sending packet %d 5120 FIN\n", client_seq_num);
     client_seq_num++;
 
+    //receive ACK for the FIN
+    struct packet fin_ack;
+    if ((numbytes = recvfrom(sockfd, &fin_ack, MAXBUFLEN - 1, 0, (struct sockaddr *)p->ai_addr, &(p->ai_addrlen))) == -1)
+    {
+      perror("recvfrom");
+      exit(1);
+    }
+    if (fin_ack.type != 4)
+    {
+      fprintf(stderr, "Error receiving ACK for FIN");
+      exit(1);
+    }
+
     //window to receive packets
     struct packet buffer[5];
     int itemsInBuffer = 0;
@@ -169,63 +184,91 @@ int main(int argc, char *argv[])
         perror("recvfrom");
         exit(1);
       }
-
-      //place packet into the buffer
-      int pkt_seq_num = pkt.seq_num;
-      if (pkt_seq_num == expected_seq_num)
-      {
-        expected_seq_num = pkt_seq_num + pkt.data_size;
-      }
-
-      //add packet into corresponding spot in the window
-      index = ((pkt_seq_num - 1) / 1000) % 5;
-      buffer[index] = pkt;
-      itemsInBuffer++;
-
-      // If packet's fin value is 1 - reached EOF OR we have a full buffer
-      if (pkt.end_of_file || itemsInBuffer == 5)
-      {
-        bufferFull = 1;
-      }
-
-      if (lastReceived < index)
-        lastReceived = index;
-
-      printf("Receiving packet %d\n", expected_seq_num);
-
-      //send the ACK - no need to print "sending packet [ack num]"
-      struct packet ACK;
-      ACK.type = 1;
-      ACK.ack_num = expected_seq_num;
-
-      if ((numbytes = sendto(sockfd, &ACK, sizeof(ACK), 0, p->ai_addr, p->ai_addrlen)) == -1)
-      {
-        perror("server: sendto");
-        exit(1);
-      }
-
-      // Write file data to received.data in the directory
-      int i;
-
-      if (bufferFull)
-      {
-        // Write buffer to file
-        i = 0;
-
-        while (i < itemsInBuffer)
+      if (pkt.type == 2)
+      { //place packet into the buffer
+        int pkt_seq_num = pkt.seq_num;
+        if (pkt_seq_num == expected_seq_num)
         {
-          write(receivedDataFile, &buffer[i].data, buffer[i].data_size);
-          i++;
+          expected_seq_num = pkt_seq_num + pkt.data_size;
         }
 
-        itemsInBuffer = 0;
-        bufferFull = 0;
-      }
+        //add packet into corresponding spot in the window
+        index = ((pkt_seq_num - 1) / 1000) % 5;
+        buffer[index] = pkt;
+        itemsInBuffer++;
 
-      if (pkt.end_of_file)
+        // If packet's fin value is 1 - reached EOF OR we have a full buffer
+        if (pkt.end_of_file || itemsInBuffer == 5)
+        {
+          bufferFull = 1;
+        }
+
+        if (lastReceived < index)
+          lastReceived = index;
+
+        printf("Receiving packet %d\n", expected_seq_num);
+
+        //send the ACK - no need to print "sending packet [ack num]"
+        struct packet ACK;
+        ACK.type = 1;
+        ACK.ack_num = expected_seq_num;
+
+        if ((numbytes = sendto(sockfd, &ACK, sizeof(ACK), 0, p->ai_addr, p->ai_addrlen)) == -1)
+        {
+          perror("server: sendto");
+          exit(1);
+        }
+
+        // Write file data to received.data in the directory
+        int i;
+
+        if (bufferFull)
+        {
+          // Write buffer to file
+          i = 0;
+
+          while (i < itemsInBuffer)
+          {
+            write(receivedDataFile, &buffer[i].data, buffer[i].data_size);
+            i++;
+          }
+
+          itemsInBuffer = 0;
+          bufferFull = 0;
+        }
+      }
+      //CHANGE THIS TO MAKE SURE IT IS THE RIGHT ENDING
+      if (pkt.type == 4)
+      {
+        /*
+        //receiving the server's fin
+        struct packet server_fin;
+        int bytes;
+        if ((bytes = recvfrom(sockfd, &server_fin, MAXBUFLEN - 1, 0, (struct sockaddr *)p->ai_addr, &(p->ai_addrlen))) == -1)
+        {
+          perror("client: recvfrom");
+          exit(1);
+        }
+        */
+
+        // //send the ACK for the FIN
+        // if (server_fin.type == 4)
+        // {
+        struct packet server_fin_ack;
+        server_fin_ack.type = 4;
+        server_fin_ack.seq_num = pkt.seq_num + 1;
+        if ((numbytes = sendto(sockfd, &server_fin_ack, sizeof(struct packet), 0, p->ai_addr, p->ai_addrlen)) == -1)
+        {
+          perror("client: sendto");
+          exit(1);
+        }
+        printf("Receiving packet %d\n", pkt.seq_num + 1);
+        fprintf(stderr, "ADD TIMEOUT");
+        closed = 1;
         break;
+        // }
+      }
     }
-    break;
   }
 
   close(sockfd);
