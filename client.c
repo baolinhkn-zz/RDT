@@ -164,8 +164,6 @@ int main(int argc, char *argv[])
           perror("server: sendto");
           exit(1);
         }
-        printf("Sending packet %d 5120 SYN\n", ack_synack_packet.seq_num);
-        client_seq_num++;
       }
       // Send filename over
       int fileNameBytes = 0;
@@ -192,9 +190,10 @@ int main(int argc, char *argv[])
   }
 
   int closed = 0;
+
+  //begin sending packets
   while (!closed)
   {
-
     //window to receive packets
     struct packet buffer[5];
     int itemsInBuffer = 0;
