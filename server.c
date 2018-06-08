@@ -268,9 +268,14 @@ int main(void)
     int nextPacket = 0;
 
     struct pollfd timer_fds[5];
-    for (i = 0; i < 5; i++) {
+
+    for (i = 1; i < 5; i++)
+    {
       timer_fds[i].events = POLLIN;
     }
+
+    struct pollfd socket_fd[1];
+    socket_fd[0].events = POLLIN;
 
     //sending packets
     while (1)
@@ -291,10 +296,10 @@ int main(void)
         struct itimerspec timeout;
 
         timer_fd = timerfd_create(CLOCK_MONOTONIC, 0);
-        if (timer_fd <= 0) 
+        if (timer_fd <= 0)
         {
-            perror("timerfd_create");
-            exit(1);
+          perror("timerfd_create");
+          exit(1);
         }
 
         timeout.it_value.tv_sec = 0;
@@ -305,28 +310,28 @@ int main(void)
 
         // Set timeout
         ret = timerfd_settime(timer_fd, 0, &timeout, NULL);
-        if (ret) 
+        if (ret)
         {
           perror("timerfd_settime");
           exit(1);
         }
-        
+
         printf("Sending packet %d 5120\n", packets[nextPacket].seq_num); //packets[nextPacket].seq_num);
         nextPacket++;
       }
 
       int time_index = 0;
-      for (i = beginWindow; i < endWindow; i++) 
+      for (i = beginWindow; i < endWindow; i++)
       {
         int ret = poll(&timer_fds[time_index].fd, 5, 0);
 
-        if (ret < 0) 
+        if (ret < 0)
         {
           perror("poll");
           exit(1);
         }
 
-        else if (ret == 0) 
+        else if (ret == 0)
         {
           // No file descriptors are ready
           // Should check if timers have run out
@@ -339,13 +344,13 @@ int main(void)
             perror("timerfd_gettime");
             exit(1);
           }
-          
-          if (current_val.it_value.tv_nsec <= 0) 
+
+          if (current_val.it_value.tv_nsec <= 0)
           {
             // Retransmit the packet at i
             //change the type to a retransmission type
             packets[i].type = 3;
-            if ((numbytes = sendto(sockfd, &packets[i], sizeof(struct packet), 0, (struct sockaddr*)&their_addr, addr_len)) == -1) 
+            if ((numbytes = sendto(sockfd, &packets[i], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
             {
               perror("sendto");
               exit(1);
@@ -358,36 +363,39 @@ int main(void)
         time_index++;
       }
 
+      // Poll for input from the socket - receiving ACKS
 
-      // check for an ack
-      struct packet received_ack;
-      if ((numbytes = recvfrom(sockfd, &received_ack, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
+      if (socket_fd[0].revents & POLLIN)
       {
-        perror("recvfrom");
-        exit(1);
-      }
-
-      //receive an ACK, check if the window should be moved
-      if (received_ack.type == 1) // && received_ack.seq_num == expected_seq_num)
-      {
-        //move the window
-        // Stop the timer for this fd
-
-        if (received_ack.ack_num >= packets[beginWindow].seq_num && received_ack.ack_num <= packets[endWindow].seq_num)
+        struct packet received_ack;
+        if ((numbytes = recvfrom(sockfd, &received_ack, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
         {
-          int newBegin = ((received_ack.ack_num - 1) / 1000);
-          endWindow = endWindow + (newBegin - beginWindow);
-          if (endWindow >= totalPackets)
-            endWindow = totalPackets - 1;
-          beginWindow = newBegin;
+          perror("recvfrom");
+          exit(1);
         }
-      }
 
-      if (received_ack.type == 4)
-      {
+        //receive an ACK, check if the window should be moved
+        if (received_ack.type == 1) // && received_ack.seq_num == expected_seq_num)
+        {
+          //move the window
+          // Stop the timer for this fd
+
+          if (received_ack.ack_num >= packets[beginWindow].seq_num && received_ack.ack_num <= packets[endWindow].seq_num)
+          {
+            int newBegin = ((received_ack.ack_num - 1) / 1000);
+            endWindow = endWindow + (newBegin - beginWindow);
+            if (endWindow >= totalPackets)
+              endWindow = totalPackets - 1;
+            beginWindow = newBegin;
+          }
+        }
+
+        if (received_ack.type == 4)
+        {
           //successfully closed
           closed = 1;
           break;
+        }
       }
 
       //client has received all of the data, break to begin TCP closing process
