@@ -262,7 +262,7 @@ int main(int argc, char *argv[])
           exit(1);
         }
         printf("Receiving packet %d\n", pkt.seq_num + 1);
-        sleep(1000);
+        sleep(100);
         closed = 1;
         break;
       }

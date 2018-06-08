@@ -1,0 +1,11 @@
+Group Number:
+Names: Katie Cai, Baolinh Nguyen
+UIDs: 404740817, 104732121
+
+We designed our implementation together, including packet header design decisions.
+We both shared the work evenly at the beginning of the project, taking turns to work on the
+client and server code up until the point where we needed to implement the sliding window.
+Baolinh worked on and designed the sliding window protocol while Katie worked on the design
+and implementation of the time-out retransmission. We both think that the work was shared
+evenly. While working on both of these parts, we would consult each other for design
+decisions and for debugging.
