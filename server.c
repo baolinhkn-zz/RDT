@@ -326,7 +326,6 @@ int main(int argc, char* argv[])
     //sending packets
     while (1)
     {
-      fprintf(stderr, "hello\n");
       while (nextPacket <= endWindow && endWindow < totalPackets)
       {
         if ((numbytes = sendto(sockfd, &packets[nextPacket], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
@@ -407,8 +406,8 @@ int main(int argc, char* argv[])
       // Poll for input from the socket - receiving ACKS NO TIMEOUT OCCURRED
       if (timer_fds[5].revents & POLLIN)
       {
+        fprintf(stderr, "HELOSFDFSDFSDFSDF");
         struct packet received_ack;
-        fprintf(stderr, "received ack ack num: %d\n", received_ack.ack_num);
         if ((numbytes = recvfrom(sockfd, &received_ack, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
         {
           perror("recvfrom");
