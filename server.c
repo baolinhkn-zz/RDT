@@ -281,6 +281,7 @@ int main(int argc, char* argv[])
 
   while (!closed)
   {
+    fprintf(stderr, "heee");
 
     // Create array of timers corresponding to packets in current window
     //int timeval *time_fds = (int*)malloc(sizeof(int) * totalPackets);
@@ -325,6 +326,7 @@ int main(int argc, char* argv[])
     //sending packets
     while (1)
     {
+      fprintf(stderr, "hello\n");
       while (nextPacket <= endWindow && endWindow < totalPackets)
       {
         if ((numbytes = sendto(sockfd, &packets[nextPacket], sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
@@ -397,6 +399,7 @@ int main(int argc, char* argv[])
       //if the socket is closed, close the connection
       if ((timer_fds[5].revents & POLLHUP) || (timer_fds[5].revents & POLLERR))
       {
+        fprintf(stderr, "trying to close\n");
         closed = 1;
         break;
       }
