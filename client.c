@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
   int rv;
   int numbytes;
 
-  if (argc != 3)
+  if (argc != 4)
   {
     fprintf(stderr, "usage: client hostname port filename \n");
     exit(1);

@@ -72,6 +72,12 @@ int main(int argc, char* argv[])
   socklen_t addr_len;
   char s[INET6_ADDRSTRLEN];
 
+
+  if (argc !=2 )
+  {
+    fprintf(stderr, "usage: server port\n");
+    exit(1);
+  }
   int MYPORT = atoi(argv[1]);
 
   int server_seq_num = 0;
