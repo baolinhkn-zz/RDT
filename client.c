@@ -144,7 +144,6 @@ int main(int argc, char *argv[])
     //received the ACK for the SYN
     if (syn_poll[0].revents & POLLIN)
     {
-      fprintf(stderr, "received ACK for the SYN\n");
       if ((numbytes = recvfrom(sockfd, &rcv_packet, MAXBUFLEN - 1, 0, (struct sockaddr *)p->ai_addr, &(p->ai_addrlen))) == -1)
       {
         perror("recvfrom");
@@ -181,7 +180,6 @@ int main(int argc, char *argv[])
     if (syn_poll[1].revents & POLLIN)
     {
       //need to resend the SYN
-      fprintf(stderr, "timed out\n");
       if ((numbytes = sendto(sockfd, &syn_packet, sizeof(syn_packet), 0, p->ai_addr, p->ai_addrlen)) == -1)
       {
         perror("client: sendto");
@@ -227,7 +225,6 @@ int main(int argc, char *argv[])
       {
         //place packet into the buffer
 
-        fprintf(stderr, "packet received: %d\n", pkt.seq_num);
         if (pkt.type == 3 && pkt.seq_num < expected_seq_num) //ACK to retransmitted packet that had been lost
         {
           ;

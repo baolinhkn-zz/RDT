@@ -278,8 +278,6 @@ int main(int argc, char *argv[])
 
   while (!closed)
   {
-    fprintf(stderr, "heee");
-
     // Create array of timers corresponding to packets in current window
     //int timeval *time_fds = (int*)malloc(sizeof(int) * totalPackets);
 
@@ -392,6 +390,13 @@ int main(int argc, char *argv[])
         time_index++;
       }
 
+      //if the socket is closed, close the connection
+      if ((timer_fds[5].revents & POLLHUP) || (timer_fds[5].revents & POLLERR))
+      {
+        fprintf(stderr, "error with sockets");
+        exit(1);
+      }
+
       // Poll for input from the socket - receiving ACKS NO TIMEOUT OCCURRED
       if (timer_fds[5].revents & POLLIN)
       {
@@ -421,7 +426,6 @@ int main(int argc, char *argv[])
         }
         if (received_ack.type == 4)
         {
-          fprintf(stderr, "received closing");
           //successfully closed
           closed = 1;
           break;
