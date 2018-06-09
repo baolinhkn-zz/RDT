@@ -404,14 +404,13 @@ int main(int argc, char* argv[])
       // Poll for input from the socket - receiving ACKS NO TIMEOUT OCCURRED
       if (timer_fds[5].revents & POLLIN)
       {
-        fprintf(stderr, "HELOSFDFSDFSDFSDF");
         struct packet received_ack;
         if ((numbytes = recvfrom(sockfd, &received_ack, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
         {
           perror("recvfrom");
           exit(1);
         }
-
+        fprintf(stderr, "received ack numbdr: %d\n", received_ack.type);
         //receive an ACK, check if the window should be moved
         if (received_ack.type == 1) // && received_ack.seq_num == expected_seq_num)
         {
