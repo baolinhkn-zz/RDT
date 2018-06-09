@@ -73,12 +73,13 @@ int main(int argc, char* argv[])
   char s[INET6_ADDRSTRLEN];
 
 
-  if (argc !=2 )
+  if (argc != 2)
   {
     fprintf(stderr, "usage: server port\n");
     exit(1);
   }
-  int MYPORT = atoi(argv[1]);
+  char* MYPORT = argv[1];
+
   fprintf(stderr, "hello\n");
 
   int server_seq_num = 0;

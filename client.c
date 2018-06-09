@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  int SERVERPORT = atoi(argv[2]);
+  char*  SERVERPORT = argv[2];
 
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
