@@ -211,8 +211,6 @@ int main(int argc, char *argv[])
       exit(1);
     }
 
-    int lastReceived = -1;
-
     while (1)
     {
       //receive the packet
