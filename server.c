@@ -73,6 +73,13 @@ int main(void)
   socklen_t addr_len;
   char s[INET6_ADDRSTRLEN];
 
+  int server_seq_num = 0;
+  int expected_seq_num = 0;
+  int last_file_seq_num = 0;
+
+  int closed = 0;
+  int finSent = 0;
+  int synReceived = 0;
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC; // set to AF_INET to force IPv4
   hints.ai_socktype = SOCK_DGRAM;
@@ -178,13 +185,13 @@ int main(void)
       }
 
       //received the ACK for the SYN
-      if (syn_poll[0].revents & POLLIN)
+      if (syn_fds[0].revents & POLLIN)
       {
         fprintf(stderr, "received ACK for the SYN\n");
         break;
       }
 
-      if (syn_poll[1].revents & POLLIN)
+      if (syn_fds[1].revents & POLLIN)
       {
         //need to resend the SYN
         fprintf(stderr, "timed out\n");
@@ -262,14 +269,6 @@ int main(void)
     totalPackets++;
 
   struct packet *packets = (struct packet *)malloc(sizeof(struct packet) * totalPackets);
-
-  int server_seq_num = 0;
-  int expected_seq_num = 0;
-  int last_file_seq_num = 0;
-
-  int closed = 0;
-  int finSent = 0;
-  int synReceived = 0;
 
   while (!closed)
   {
