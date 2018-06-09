@@ -113,6 +113,156 @@ int main(void)
 
   addr_len = sizeof their_addr;
 
+  struct packet syn_packet;
+
+  //waiting for client's SYN request
+  if ((numbytes = recvfrom(sockfd, &syn_packet, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
+  {
+    perror("recvfrom");
+    exit(1);
+  }
+
+  //check for SYN packet
+  if (syn_packet.type == 0 && syn_packet.seq_num == 0)
+  {
+    synReceived = 1;
+    //successfully received syn packet
+    syn_packet.ack_num = syn_packet.seq_num + 1;
+    printf("Receiving packet %d\n", syn_packet.ack_num);
+
+    //send SYNACK packet
+    struct packet synack_packet;
+    synack_packet.type = 1;
+    synack_packet.seq_num = server_seq_num;
+    synack_packet.end_of_file = 1;
+    if ((numbytes = sendto(sockfd, &synack_packet, sizeof(synack_packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
+    {
+      perror("server: sendto");
+      exit(1);
+    }
+    printf("Sending packet %d %d SYN\n", synack_packet.seq_num, CWND);
+    server_seq_num++;
+    expected_seq_num++;
+
+    int syn_timer_fd = -1;
+    int ret;
+
+    struct itimerspec syn_timeout;
+
+    syn_timer_fd = timerfd_create(CLOCK_MONOTONIC, 0);
+    if (syn_timer_fd <= 0)
+    {
+      perror("timerfd_create");
+      exit(1);
+    }
+
+    syn_timeout.it_interval.tv_sec = 0;
+    syn_timeout.it_interval.tv_nsec = 0;
+    syn_timeout.it_value.tv_sec = 0;
+    syn_timeout.it_value.tv_nsec = 500000000;
+
+    struct pollfd syn_fds[2];
+    syn_fds[0].events = POLLIN;
+    syn_fds[0].fd = sockfd;
+
+    syn_fds[1].events = POLLIN;
+    syn_fds[1].fd = syn_timer_fd;
+
+    while (1)
+    {
+      int ret = poll(syn_fds, 2, 0);
+      if (ret < 0)
+      {
+        perror("poll");
+        exit(1);
+      }
+
+      //received the ACK for the SYN
+      if (syn_poll[0].revents & POLLIN)
+      {
+        fprintf(stderr, "received ACK for the SYN\n");
+        break;
+      }
+
+      if (syn_poll[1].revents & POLLIN)
+      {
+        //need to resend the SYN
+        fprintf(stderr, "timed out\n");
+        if ((numbytes = sendto(sockfd, &synack_packet, sizeof(synack_packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
+        {
+          perror("server: sendto");
+          exit(1);
+        }
+        printf("Sending packet %d %d Retransmission SYN\n", synack_packet.seq_num, CWND);
+      }
+    }
+  }
+
+  //final ACK of three way handshake
+  struct packet three_way_ack_packet;
+  if ((numbytes = recvfrom(sockfd, &three_way_ack_packet, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
+  {
+    perror("recvfrom");
+    exit(1);
+  }
+
+  if (three_way_ack_packet.type == 1 && three_way_ack_packet.seq_num == 1)
+  {
+    three_way_ack_packet.ack_num = three_way_ack_packet.seq_num + 1;
+    printf("Receiving packet %d\n", three_way_ack_packet.ack_num);
+  }
+
+  //get the file name from the client
+  char filename_buff[100];
+  if ((numbytes = recvfrom(sockfd, &filename_buff, MAXBUFLEN, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
+  {
+    perror("recvfrom");
+    exit(1);
+  }
+
+  fprintf(stderr, "receiving file %s", filename_buff);
+
+  // Find the file in the current working directory
+  DIR *dp;
+  struct dirent *ep;
+  dp = opendir("./");
+  int validFile = 0;
+  FILE *fp;
+
+  if (dp != NULL)
+  {
+    while ((ep = readdir(dp)))
+    {
+      if (strcmp(ep->d_name, filename_buff) == 0)
+      {
+        fp = fopen(ep->d_name, "r");
+        validFile = 1;
+      }
+    }
+    (void)closedir(dp);
+  }
+
+  if (!validFile)
+  {
+    fprintf(stderr, "file not found!");
+    exit(1);
+  }
+
+  if (fseek(fp, 0, SEEK_END) != 0)
+  {
+    fprintf(stderr, "error using fseek");
+  }
+
+  int file_length = ftell(fp);
+
+  int totalPackets = file_length / DATA;
+  if (file_length < DATA)
+    totalPackets = 1;
+  if (file_length % DATA != 0 && file_length > DATA)
+    totalPackets++;
+
+  struct packet *packets = (struct packet *)malloc(sizeof(struct packet) * totalPackets);
+
   int server_seq_num = 0;
   int expected_seq_num = 0;
   int last_file_seq_num = 0;
@@ -120,103 +270,9 @@ int main(void)
   int closed = 0;
   int finSent = 0;
   int synReceived = 0;
+
   while (!closed)
   {
-    struct packet syn_packet;
-
-    if ((numbytes = recvfrom(sockfd, &syn_packet, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
-    {
-      perror("recvfrom");
-      exit(1);
-    }
-
-    //check for SYN packet
-    if (!synReceived && syn_packet.type == 0 && syn_packet.seq_num == 0)
-    {
-      synReceived = 1;
-      //successfully received syn packet
-      syn_packet.ack_num = syn_packet.seq_num + 1;
-      printf("Receiving packet %d\n", syn_packet.ack_num);
-
-      //send SYNACK packet
-      struct packet synack_packet;
-      synack_packet.type = 1;
-      synack_packet.seq_num = server_seq_num;
-      synack_packet.end_of_file = 1;
-      if ((numbytes = sendto(sockfd, &synack_packet, sizeof(synack_packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
-      {
-        perror("server: sendto");
-        exit(1);
-      }
-      printf("Sending packet %d %d SYN\n", synack_packet.seq_num, CWND);
-      server_seq_num++;
-      expected_seq_num++;
-    }
-
-    //final ACK of three way handshake
-    struct packet three_way_ack_packet;
-    if ((numbytes = recvfrom(sockfd, &three_way_ack_packet, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
-    {
-      perror("recvfrom");
-      exit(1);
-    }
-
-    if (three_way_ack_packet.type == 1 && three_way_ack_packet.seq_num == 1)
-    {
-      three_way_ack_packet.ack_num = three_way_ack_packet.seq_num + 1;
-      printf("Receiving packet %d\n", three_way_ack_packet.ack_num);
-    }
-
-    //get the file name from the client
-    char filename_buff[100];
-    if ((numbytes = recvfrom(sockfd, &filename_buff, MAXBUFLEN, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
-    {
-      perror("recvfrom");
-      exit(1);
-    }
-
-    fprintf(stderr, "receiving file %s", filename_buff);
-
-    // Find the file in the current working directory
-    DIR *dp;
-    struct dirent *ep;
-    dp = opendir("./");
-    int validFile = 0;
-    FILE *fp;
-
-    if (dp != NULL)
-    {
-      while ((ep = readdir(dp)))
-      {
-        if (strcmp(ep->d_name, filename_buff) == 0)
-        {
-          fp = fopen(ep->d_name, "r");
-          validFile = 1;
-        }
-      }
-      (void)closedir(dp);
-    }
-
-    if (!validFile)
-    {
-      fprintf(stderr, "file not found!");
-      exit(1);
-    }
-
-    if (fseek(fp, 0, SEEK_END) != 0)
-    {
-      fprintf(stderr, "error using fseek");
-    }
-
-    int file_length = ftell(fp);
-
-    int totalPackets = file_length / DATA;
-    if (file_length < DATA)
-      totalPackets = 1;
-    if (file_length % DATA != 0 && file_length > DATA)
-      totalPackets++;
-
-    struct packet *packets = (struct packet *)malloc(sizeof(struct packet) * totalPackets);
 
     // Create array of timers corresponding to packets in current window
     //int timeval *time_fds = (int*)malloc(sizeof(int) * totalPackets);
@@ -391,7 +447,7 @@ int main(void)
         fin_pkt.type = 4;
         fin_pkt.seq_num = server_seq_num;
         fin_pkt.end_of_file = 0;
-        
+
         if ((numbytes = sendto(sockfd, &fin_pkt, sizeof(struct packet), 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
         {
           perror("sender: sendto");
@@ -432,7 +488,7 @@ int main(void)
     }
     //break;
   }
-  
+
   close(sockfd);
   return 0;
 }

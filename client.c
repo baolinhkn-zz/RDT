@@ -86,6 +86,7 @@ int main(int argc, char *argv[])
   int expected_seq_num = 0;
 
   struct packet rcv_packet;
+
   //send initial three way handshake request
   struct packet syn_packet;
   syn_packet.type = 0; //SYN packet
