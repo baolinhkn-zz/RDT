@@ -61,7 +61,7 @@ void *get_in_addr(struct sockaddr *sa)
 //   return elapsed_time;
 // }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
   int sockfd;
   struct addrinfo hints, *servinfo, *p;
@@ -72,13 +72,12 @@ int main(int argc, char* argv[])
   socklen_t addr_len;
   char s[INET6_ADDRSTRLEN];
 
-
   if (argc != 2)
   {
     fprintf(stderr, "usage: server port\n");
     exit(1);
   }
-  char* MYPORT = argv[1];
+  char *MYPORT = argv[1];
 
   int server_seq_num = 0;
   int expected_seq_num = 0;
@@ -393,14 +392,6 @@ int main(int argc, char* argv[])
         time_index++;
       }
 
-      //if the socket is closed, close the connection
-      if ((timer_fds[5].revents & POLLHUP) || (timer_fds[5].revents & POLLERR))
-      {
-        fprintf(stderr, "trying to close\n");
-        closed = 1;
-        break;
-      }
-
       // Poll for input from the socket - receiving ACKS NO TIMEOUT OCCURRED
       if (timer_fds[5].revents & POLLIN)
       {
@@ -410,7 +401,6 @@ int main(int argc, char* argv[])
           perror("recvfrom");
           exit(1);
         }
-        fprintf(stderr, "received ack numbdr: %d\n", received_ack.type);
         //receive an ACK, check if the window should be moved
         if (received_ack.type == 1) // && received_ack.seq_num == expected_seq_num)
         {
@@ -428,14 +418,13 @@ int main(int argc, char* argv[])
               endWindow = totalPackets - 1;
             beginWindow = newBegin;
           }
-
-          if (received_ack.type == 4)
-          {
-            fprintf(stderr, "received closing");
-            //successfully closed
-            closed = 1;
-            break;
-          }
+        }
+        if (received_ack.type == 4)
+        {
+          fprintf(stderr, "received closing");
+          //successfully closed
+          closed = 1;
+          break;
         }
       }
 
