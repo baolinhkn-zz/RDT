@@ -424,6 +424,7 @@ int main(int argc, char* argv[])
 
           if (received_ack.type == 4)
           {
+            fprintf(stderr, "received closing");
             //successfully closed
             closed = 1;
             break;
