@@ -79,6 +79,7 @@ int main(int argc, char* argv[])
     exit(1);
   }
   int MYPORT = atoi(argv[1]);
+  fprintf(stderr, "hello\n");
 
   int server_seq_num = 0;
   int expected_seq_num = 0;
