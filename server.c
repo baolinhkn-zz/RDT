@@ -398,6 +398,7 @@ int main(int argc, char* argv[])
       if (timer_fds[5].revents & POLLIN)
       {
         struct packet received_ack;
+        fprintf(stderr, "received ack ack num: %d\n", received_ack.ack_num);
         if ((numbytes = recvfrom(sockfd, &received_ack, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
         {
           perror("recvfrom");
