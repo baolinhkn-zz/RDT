@@ -80,8 +80,6 @@ int main(int argc, char* argv[])
   }
   char* MYPORT = argv[1];
 
-  fprintf(stderr, "hello\n");
-
   int server_seq_num = 0;
   int expected_seq_num = 0;
   int last_file_seq_num = 0;
