@@ -317,7 +317,7 @@ int main(int argc, char* argv[])
 
     for (i = 0; i < 7; i++)
     {
-      timer_fds[i].events = POLLIN;
+      timer_fds[i].events = POLLIN | POLLHUP | POLLERR;
     }
 
     timer_fds[5].fd = sockfd;
@@ -392,6 +392,13 @@ int main(int argc, char* argv[])
         }
 
         time_index++;
+      }
+
+      //if the socket is closed, close the connection
+      if ((timer_fds[5].revents & POLLHUP) || (timer_fds[5].revents & POLLERR))
+      {
+        closed = 1;
+        break;
       }
 
       // Poll for input from the socket - receiving ACKS NO TIMEOUT OCCURRED

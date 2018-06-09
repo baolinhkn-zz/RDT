@@ -304,7 +304,7 @@ int main(int argc, char *argv[])
           exit(1);
         }
         printf("Receiving packet %d\n", pkt.seq_num + 1);
-        sleep(5);
+        sleep(1);
         closed = 1;
         break;
       }
