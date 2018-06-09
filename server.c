@@ -16,7 +16,6 @@
 #include <sys/time.h>
 #include <sys/timerfd.h>
 
-#define MYPORT "4950" // the port users will be connecting to
 #define DATA 996
 #define MAXBUFLEN 2048
 #define CWND 5120
@@ -62,7 +61,7 @@ void *get_in_addr(struct sockaddr *sa)
 //   return elapsed_time;
 // }
 
-int main(void)
+int main(int argc, char* argv[])
 {
   int sockfd;
   struct addrinfo hints, *servinfo, *p;
@@ -72,6 +71,8 @@ int main(void)
   char buf[MAXBUFLEN];
   socklen_t addr_len;
   char s[INET6_ADDRSTRLEN];
+
+  int MYPORT = atoi(argv[1]);
 
   int server_seq_num = 0;
   int expected_seq_num = 0;
@@ -485,7 +486,7 @@ int main(void)
         timer_fds[6].events = POLLIN;
       }
     }
-    //break;
+    break;
   }
 
   close(sockfd);

@@ -13,7 +13,6 @@
 #include <sys/time.h>
 #include <sys/timerfd.h>
 
-#define SERVERPORT "4950" // the port users will be connecting to
 #define DATA 996
 #define MAXBUFLEN 2048
 #define CWND 5120
@@ -50,9 +49,11 @@ int main(int argc, char *argv[])
 
   if (argc != 3)
   {
-    fprintf(stderr, "usage: client hostname message\n");
+    fprintf(stderr, "usage: client hostname port filename \n");
     exit(1);
   }
+
+  int SERVERPORT = atoi(argv[2]);
 
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
@@ -168,7 +169,7 @@ int main(int argc, char *argv[])
       }
       // Send filename over
       int fileNameBytes = 0;
-      if ((fileNameBytes = sendto(sockfd, argv[2], strlen(argv[2]) + 1, 0, p->ai_addr, p->ai_addrlen)) == -1)
+      if ((fileNameBytes = sendto(sockfd, argv[3], strlen(argv[2]) + 1, 0, p->ai_addr, p->ai_addrlen)) == -1)
       {
         perror("server: sendto");
         exit(1);
@@ -226,10 +227,6 @@ int main(int argc, char *argv[])
       {
         //place packet into the buffer
 
-        if (pkt.type == 3)
-        {
-          fprintf(stderr, "receiving retransmissino of %d", pkt.seq_num);
-        }
         fprintf(stderr, "packet received: %d\n", pkt.seq_num);
         if (pkt.type == 3 && pkt.seq_num < expected_seq_num) //ACK to retransmitted packet that had been lost
         {
@@ -239,32 +236,28 @@ int main(int argc, char *argv[])
         {
           int pkt_seq_num = pkt.seq_num;
           //check if the packet is in the window
-
-
-          //add packet into corresponding spot in the window
-          index = ((pkt_seq_num - 1) / 1000) % 5;
-          buffer[index] = pkt;
-          itemsInBuffer++;
-
           if (pkt_seq_num > expected_seq_num + 5120)
           {
             continue;
           }
           if (pkt_seq_num == expected_seq_num)
           {
-            if (lastReceived == index-1)
-            {
-              lastReceived = index;
-            }
-            fprintf(stderr, "last received: %d", lastReceived);
-            expected_seq_num = pkt_seq_num + buffer[lastReceived].data_size;
+            expected_seq_num = pkt_seq_num + pkt.data_size;
           }
+
+          //add packet into corresponding spot in the window
+          index = ((pkt_seq_num - 1) / 1000) % 5;
+          buffer[index] = pkt;
+          itemsInBuffer++;
 
           // If packet's fin value is 1 - reached EOF OR we have a full buffer
           if (pkt.end_of_file || itemsInBuffer == 5)
           {
             bufferFull = 1;
           }
+
+          if (lastReceived < index)
+            lastReceived = index;
         }
 
         //send the ACK - no need to print "sending packet [ack num]"
