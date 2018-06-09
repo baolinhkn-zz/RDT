@@ -226,7 +226,7 @@ int main(int argc, char *argv[])
       {
         //place packet into the buffer
 
-        (if pkt.type == 3)
+        if (pkt.type == 3)
         {
           fprintf(stderr, "receiving retransmissino of %d\n", pkt.seq_num);
         }
