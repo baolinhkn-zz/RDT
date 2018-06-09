@@ -226,6 +226,10 @@ int main(int argc, char *argv[])
       {
         //place packet into the buffer
 
+        (if pkt.type == 3)
+        {
+          fprintf(stderr, "receiving retransmissino of %d\n", pkt.seq_num);
+        }
         fprintf(stderr, "packet received: %d\n", pkt.seq_num);
         if (pkt.type == 3 && pkt.seq_num < expected_seq_num) //ACK to retransmitted packet that had been lost
         {
@@ -252,6 +256,7 @@ int main(int argc, char *argv[])
             {
               lastReceived = index;
             }
+            fprintf(stderr, "last received: %d", lastReceived);
             expected_seq_num = pkt_seq_num + buffer[lastReceived].data_size;
           }
 
