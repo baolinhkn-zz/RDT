@@ -211,6 +211,8 @@ int main(int argc, char *argv[])
       exit(1);
     }
 
+    int lastReceived = -1;
+
     while (1)
     {
       //receive the packet
@@ -235,19 +237,25 @@ int main(int argc, char *argv[])
         {
           int pkt_seq_num = pkt.seq_num;
           //check if the packet is in the window
+
+
+          //add packet into corresponding spot in the window
+          index = ((pkt_seq_num - 1) / 1000) % 5;
+          buffer[index] = pkt;
+          itemsInBuffer++;
+
           if (pkt_seq_num > expected_seq_num + 5120)
           {
             continue;
           }
           if (pkt_seq_num == expected_seq_num)
           {
-            expected_seq_num = pkt_seq_num + pkt.data_size;
+            if (lastReceived == index-1)
+            {
+              lastReceived = index;
+            }
+            expected_seq_num = pkt_seq_num + buffer[lastReceived].data_size;
           }
-
-          //add packet into corresponding spot in the window
-          index = ((pkt_seq_num - 1) / 1000) % 5;
-          buffer[index] = pkt;
-          itemsInBuffer++;
 
           // If packet's fin value is 1 - reached EOF OR we have a full buffer
           if (pkt.end_of_file || itemsInBuffer == 5)
