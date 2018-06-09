@@ -226,9 +226,9 @@ int main(int argc, char *argv[])
       {
         //place packet into the buffer
 
-        if (pkt.type == 3)
+        (if pkt.type == 3)
         {
-          fprintf(stderr, "receiving retransmissino of %d\n", pkt.seq_num);
+          fprintf(stderr, "receiving retransmissino of %d", pkt.seq_num);
         }
         fprintf(stderr, "packet received: %d\n", pkt.seq_num);
         if (pkt.type == 3 && pkt.seq_num < expected_seq_num) //ACK to retransmitted packet that had been lost
@@ -265,9 +265,6 @@ int main(int argc, char *argv[])
           {
             bufferFull = 1;
           }
-
-          if (lastReceived < index)
-            lastReceived = index;
         }
 
         //send the ACK - no need to print "sending packet [ack num]"
