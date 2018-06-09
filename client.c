@@ -169,7 +169,7 @@ int main(int argc, char *argv[])
       }
       // Send filename over
       int fileNameBytes = 0;
-      if ((fileNameBytes = sendto(sockfd, argv[3], strlen(argv[2]) + 1, 0, p->ai_addr, p->ai_addrlen)) == -1)
+      if ((fileNameBytes = sendto(sockfd, argv[3], strlen(argv[3]) + 1, 0, p->ai_addr, p->ai_addrlen)) == -1)
       {
         perror("server: sendto");
         exit(1);
